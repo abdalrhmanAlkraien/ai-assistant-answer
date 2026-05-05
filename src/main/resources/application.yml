@@ -5,9 +5,12 @@ langchain4j:
   embeddings:
     hugging-face: # The embedding model will be chosen under these configurations for RAG purposes. Depending upon the chosen model, the embeddings will be created for uploaded document chunks and matches will be performed to fetch chunks as per the similarity searches algorithms e.g. Cosine similarity.
       model-id: sentence-transformers/all-MiniLM-L6-v2 #model-id: BAAI/bge-small-en-v1.5
-      access-key: ${HUGGING_FACE_TOKEN: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}
-      access-token: ${HUGGING_FACE_TOKEN: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}
-      api-key: ${HUGGING_FACE_TOKEN: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}
+#      access-key: ${HUGGING_FACE_TOKEN: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}
+#      access-token: ${HUGGING_FACE_TOKEN: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}
+#      api-key: ${HUGGING_FACE_TOKEN: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}
+      access-key: ${HUGGING_FACE_TOKEN:}
+      access-token: ${HUGGING_FACE_TOKEN:}
+      api-key: ${HUGGING_FACE_TOKEN:}
       wait-for-model: true #Blocks startup until the embedding model is fully downloaded and loaded into the memory.
       timeout: PT3M #PT30S P - Period, T - Time, 30S - 30 Seconds, 3M - 3 Minutes. PT30S is too less to download a big size embedding model.
 
