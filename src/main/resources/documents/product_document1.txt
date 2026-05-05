@@ -1,0 +1,206 @@
+[
+  {
+    "id": "P001",
+    "content": "Title: iPhone 15 Pro Category: Smartphones Price: 999 USD Description: Apple's latest smartphone with A17 chip and advanced camera system. Features: 48MP camera, titanium body, iOS ecosystem Tags: apple, premium, ios, smartphone"
+  },
+  {
+    "id": "P002",
+    "content": "Title: Samsung Galaxy S24 Category: Smartphones Price: 899 USD Description: Flagship Android phone with high performance and excellent display. Features: AMOLED display, Snapdragon processor Tags: samsung, android, flagship"
+  },
+  {
+    "id": "P003",
+    "content": "content": "Title: Xiaomi Redmi Note 13 Category: Smartphones Price: 299 USD Description: Budget-friendly smartphone with solid performance. Features: 108MP camera, fast charging Tags: budget, android, xiaomi"
+  },
+  {
+    "id": "P004",
+    "content": "Title: MacBook Air M2 Category: Laptops Price: 1199 USD Description: Lightweight laptop with Apple M2 chip for high performance. Features: Retina display, long battery life Tags: apple, laptop, premium"
+  },
+  {
+    "id": "P005",
+    "content": "Title: Dell XPS 13 Category: Laptops Price: 1099 USD Description: Premium ultrabook with sleek design and strong performance. Features: InfinityEdge display, Intel i7 Tags: dell, ultrabook"
+  },
+  {
+    "id": "P006",
+    "content": "Title: HP Pavilion 15 Category: Laptops Price: 799 USD Description: Affordable laptop for everyday use. Features: 16GB RAM, SSD storage Tags: hp, budget, laptop"
+  },
+  {
+    "id": "P007",
+    "content": "Title: ASUS ROG Strix G16 Category: Gaming Laptops Price: 1499 USD Description: High-performance gaming laptop for enthusiasts. Features: RTX graphics, high refresh rate Tags: gaming, asus"
+  },
+  {
+    "id": "P008",
+    "content": "Title: Sony WH-1000XM5 Category: Headphones Price: 399 USD Description: Industry-leading noise-canceling headphones. Features: ANC, long battery Tags: sony, audio, premium"
+  },
+  {
+    "id": "P009",
+    "content": "Title: Apple AirPods Pro Category: Earbuds Price: 249 USD Description: Wireless earbuds with active noise cancellation. Features: spatial audio Tags: apple, earbuds"
+  },
+  {
+    "id": "P010",
+    "content": "Title: JBL Flip 6 Category: Speakers Price: 129 USD Description: Portable Bluetooth speaker with powerful sound. Features: waterproof Tags: jbl, speaker"
+  },
+
+  {
+    "id": "P011",
+    "content": "Title: Samsung 55 Inch QLED TV Category: TVs Price: 899 USD Description: Smart TV with stunning visuals. Features: 4K, HDR Tags: tv, samsung"
+  },
+  {
+    "id": "P012",
+    "content": "Title: LG OLED C3 Category: TVs Price: 1299 USD Description: Premium OLED TV with deep blacks. Features: OLED panel Tags: lg, premium"
+  },
+  {
+    "id": "P013",
+    "content": "Title: PlayStation 5 Category: Gaming Price: 499 USD Description: Next-gen gaming console. Features: ultra-fast SSD Tags: sony, gaming"
+  },
+  {
+    "id": "P014",
+    "content": "Title: Xbox Series X Category: Gaming Price: 499 USD Description: Powerful console for gaming. Features: 4K gaming Tags: xbox"
+  },
+  {
+    "id": "P015",
+    "content": "Title: Logitech MX Master 3 Category: Accessories Price: 99 USD Description: Advanced wireless mouse. Features: ergonomic design Tags: logitech"
+  },
+  {
+    "id": "P016",
+    "content": "Title: Mechanical Keyboard RGB Category: Accessories Price: 120 USD Description: Gaming keyboard with RGB lighting. Features: mechanical switches Tags: keyboard"
+  },
+  {
+    "id": "P017",
+    "content": "Title: Amazon Echo Dot Category: Smart Home Price: 49 USD Description: Smart speaker with Alexa. Features: voice control Tags: smart home"
+  },
+  {
+    "id": "P018",
+    "content": "Title: Google Nest Hub Category: Smart Home Price: 89 USD Description: Smart display with Google Assistant. Features: touch screen Tags: google"
+  },
+  {
+    "id": "P019",
+    "content": "Title: Dyson V11 Vacuum Category: Home Appliances Price: 599 USD Description: Cordless vacuum cleaner. Features: strong suction Tags: dyson"
+  },
+  {
+    "id": "P020",
+    "content": "Title: Instant Pot Duo Category: Kitchen Price: 99 USD Description: Multi-use pressure cooker. Features: 7-in-1 Tags: kitchen"
+  },
+
+  {
+    "id": "P021",
+    "content": "Title: Nike Air Max Category: Shoes Price: 150 USD Description: Comfortable running shoes. Features: breathable Tags: nike"
+  },
+  {
+    "id": "P022",
+    "content": "Title: Adidas Ultraboost Category: Shoes Price: 180 USD Description: High-performance running shoes. Features: boost technology Tags: adidas"
+  },
+  {
+    "id": "P023",
+    "content": "Title: Levi's 501 Jeans Category: Clothing Price: 80 USD Description: Classic straight fit jeans. Features: durable Tags: levis"
+  },
+  {
+    "id": "P024",
+    "content": "Title: Zara Jacket Category: Clothing Price: 120 USD Description: Stylish winter jacket. Features: modern design Tags: zara"
+  },
+  {
+    "id": "P025",
+    "content": "Title: Fossil Smartwatch Category: Wearables Price: 199 USD Description: Stylish smartwatch with tracking. Features: heart rate Tags: fossil"
+  },
+  {
+    "id": "P026",
+    "content": "Title: Fitbit Charge 5 Category: Wearables Price: 149 USD Description: Fitness tracker with GPS. Features: health tracking Tags: fitbit"
+  },
+  {
+    "id": "P027",
+    "content": "Title: GoPro Hero 12 Category: Cameras Price: 399 USD Description: Action camera for adventures. Features: 5K video Tags: gopro"
+  },
+  {
+    "id": "P028",
+    "content": "Title: Canon EOS R50 Category: Cameras Price: 899 USD Description: Mirrorless camera for beginners. Features: high quality Tags: canon"
+  },
+  {
+    "id": "P029",
+    "content": "Title: DJI Mini 3 Drone Category: Drones Price: 699 USD Description: Compact drone with camera. Features: 4K video Tags: dji"
+  },
+  {
+    "id": "P030",
+    "content": "Title: HP LaserJet Printer Category: Office Price: 199 USD Description: Fast laser printer. Features: wireless printing Tags: hp"
+  },
+
+  {
+    "id": "P031",
+    "content": "Title: Office Chair Ergonomic Category: Furniture Price: 249 USD Description: Comfortable office chair. Features: lumbar support Tags: office"
+  },
+  {
+    "id": "P032",
+    "content": "Title: IKEA Desk Category: Furniture Price: 199 USD Description: Minimalist desk for office. Features: wooden Tags: ikea"
+  },
+  {
+    "id": "P033",
+    "content": "Title: Gaming Monitor 144Hz Category: Monitors Price: 299 USD Description: High refresh rate monitor. Features: 144Hz Tags: gaming"
+  },
+  {
+    "id": "P034",
+    "content": "Title: Samsung SSD 1TB Category: Storage Price: 129 USD Description: Fast solid state drive. Features: high speed Tags: samsung"
+  },
+  {
+    "id": "P035",
+    "content": "Title: WD External HDD 2TB Category: Storage Price: 89 USD Description: Portable storage solution. Features: USB 3.0 Tags: wd"
+  },
+  {
+    "id": "P036",
+    "content": "Title: Anker Power Bank Category: Accessories Price: 49 USD Description: Portable charger. Features: fast charging Tags: anker"
+  },
+  {
+    "id": "P037",
+    "content": "Title: Apple Watch Series 9 Category: Wearables Price: 399 USD Description: Smartwatch with advanced features. Features: health tracking Tags: apple"
+  },
+  {
+    "id": "P038",
+    "content": "Title: Samsung Galaxy Watch 6 Category: Wearables Price: 299 USD Description: Android smartwatch. Features: fitness tracking Tags: samsung"
+  },
+  {
+    "id": "P039",
+    "content": "Title: Bose Soundbar 700 Category: Audio Price: 599 USD Description: Premium soundbar system. Features: surround sound Tags: bose"
+  },
+  {
+    "id": "P040",
+    "content": "Title: Philips Hue Lights Category: Smart Home Price: 199 USD Description: Smart lighting system. Features: color control Tags: smart home"
+  },
+
+  {
+    "id": "P041",
+    "content": "Title: KitchenAid Mixer Category: Kitchen Price: 499 USD Description: Professional mixer for baking. Features: powerful motor Tags: kitchen"
+  },
+  {
+    "id": "P042",
+    "content": "Title: Nespresso Coffee Machine Category: Kitchen Price: 249 USD Description: Coffee machine for espresso. Features: fast brewing Tags: coffee"
+  },
+  {
+    "id": "P043",
+    "content": "Title: Tefal Air Fryer Category: Kitchen Price: 149 USD Description: Healthy frying appliance. Features: low oil Tags: kitchen"
+  },
+  {
+    "id": "P044",
+    "content": "Title: Samsung Refrigerator Category: Appliances Price: 999 USD Description: Large fridge with smart features. Features: energy efficient Tags: samsung"
+  },
+  {
+    "id": "P045",
+    "content": "Title: LG Washing Machine Category: Appliances Price: 799 USD Description: Efficient washing machine. Features: smart control Tags: lg"
+  },
+  {
+    "id": "P046",
+    "content": "Title: Philips Hair Dryer Category: Beauty Price: 79 USD Description: Fast drying hair dryer. Features: ionic technology Tags: beauty"
+  },
+  {
+    "id": "P047",
+    "content": "Title: Oral-B Electric Toothbrush Category: Health Price: 59 USD Description: Advanced toothbrush. Features: deep cleaning Tags: health"
+  },
+  {
+    "id": "P048",
+    "content": "Title: Ray-Ban Sunglasses Category: Accessories Price: 199 USD Description: Stylish sunglasses. Features: UV protection Tags: fashion"
+  },
+  {
+    "id": "P049",
+    "content": "Title: North Face Backpack Category: Bags Price: 129 USD Description: Durable travel backpack. Features: water resistant Tags: travel"
+  },
+  {
+    "id": "P050",
+    "content": "Title: Garmin GPS Watch Category: Wearables Price: 349 USD Description: GPS watch for athletes. Features: tracking Tags: sports"
+  }
+]

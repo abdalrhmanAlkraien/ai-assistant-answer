@@ -1,3 +1,35 @@
 server:
   port: 8080
 
+langchain4j:
+  embeddings:
+    hugging-face: # The embedding model will be chosen under these configurations for RAG purposes. Depending upon the chosen model, the embeddings will be created for uploaded document chunks and matches will be performed to fetch chunks as per the similarity searches algorithms e.g. Cosine similarity.
+      model-id: sentence-transformers/all-MiniLM-L6-v2 #model-id: BAAI/bge-small-en-v1.5
+      access-key: ${HUGGING_FACE_TOKEN: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}
+      access-token: ${HUGGING_FACE_TOKEN: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}
+      api-key: ${HUGGING_FACE_TOKEN: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}
+      wait-for-model: true #Blocks startup until the embedding model is fully downloaded and loaded into the memory.
+      timeout: PT3M #PT30S P - Period, T - Time, 30S - 30 Seconds, 3M - 3 Minutes. PT30S is too less to download a big size embedding model.
+
+  vector-store:
+    chroma:
+      base-url: http://localhost:8000 # The Chroma vector database service is running here. Check the Docker command used to run the Chroma vector database docker image.
+      url: http://localhost:8000
+      collection-name: tourists-pilgrimages-sites-collection-v10 # The embeddings are all stored under this collection. You can create different collections for different documents that are RAG'd.
+      top-k-max: 20
+      default-min-score-threshold: 0.62
+    max-file-size-mbytes: 50
+
+  chat-model:
+    ollama:
+      base-url: http://localhost:11434 # The Ollama service is running on this host and port.
+      model-name: llama3.2:3b # The model that we chose to run behind the Ollama service
+      temperature: 0.7
+      timeout: PT60S
+
+  document-parser:
+    apache-pdfbox:
+      chunk-size: 1000  # Chunk size in words/tokens. This plays a very critical role in determining the accuracy of the Knowledge-driven LLM response.
+      chunk-overlap: 200  # Chunk overlap in words/tokens. This alongwith the 'chunk-size' parameter needs to be tweaked per your business use case to make the Knowledge-driven LLM response accurate enough.
+    apache-tika:
+      enabled: true
