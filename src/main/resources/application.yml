@@ -8,9 +8,9 @@ langchain4j:
     hugging-face: # The embedding model will be chosen under these configurations for RAG purposes. Depending upon the chosen model, the embeddings will be created for uploaded document chunks and matches will be performed to fetch chunks as per the similarity searches algorithms e.g. Cosine similarity.
       model-id: sentence-transformers/all-MiniLM-L6-v2 #model-id: BAAI/bge-small-en-v1.5
 
-      access-key: ${HUGGING_FACE_TOKEN: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}
-      access-token: ${HUGGING_FACE_TOKEN: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}
-      api-key: ${HUGGING_FACE_TOKEN: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}
+      access-key: ${HUGGING_FACE_TOKEN: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}
+      access-token: ${HUGGING_FACE_TOKEN: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}
+      api-key: ${HUGGING_FACE_TOKEN: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}
       wait-for-model: true #Blocks startup until the embedding model is fully downloaded and loaded into the memory.
       timeout: PT3M #PT30S P - Period, T - Time, 30S - 30 Seconds, 3M - 3 Minutes. PT30S is too less to download a big size embedding model.
 
@@ -19,8 +19,8 @@ langchain4j:
       base-url: http://localhost:8000 # The Chroma vector database service is running here. Check the Docker command used to run the Chroma vector database docker image.
       url: http://localhost:8000
       collection-name: products-collection # The embeddings are all stored under this collection. You can create different collections for different documents that are RAG'd.
-      top-k-max: 5
-      default-min-score-threshold: 0.0
+      top-k-max: 20
+      default-min-score-threshold: 0.62
     max-file-size-mbytes: 50
 
   chat-model:
