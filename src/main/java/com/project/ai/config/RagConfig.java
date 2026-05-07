@@ -81,6 +81,7 @@ public class RagConfig {
                 .baseUrl(properties.getVectorStore().getChroma().getBaseUrl())
                 .collectionName(properties.getVectorStore().getChroma().getCollectionName())
                 .apiVersion(ChromaApiVersion.V1)
+
                 .build();
     }
 
