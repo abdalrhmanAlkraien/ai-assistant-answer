@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.ai.config.LangChain4jProperties;
 import com.project.ai.dto.ChatRequest;
 import com.project.ai.dto.ChatResponse;
+import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.SearchIntent;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
@@ -13,17 +14,16 @@ import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import dev.langchain4j.store.embedding.filter.Filter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import static dev.langchain4j.store.embedding.filter.MetadataFilterBuilder.metadataKey;
 
 /**
  * @author: Abd-alrhman Alkraien.
@@ -44,9 +44,23 @@ public class ChatService {
 
     public ChatResponse chat(final ChatRequest chatRequest) throws JsonProcessingException {
 
-//        Embedding questionEmbedding  = embeddingModel.embed(chatRequest.getQuestion()).content();
-
         SearchIntent searchIntent = extractIntent(chatRequest.getQuestion());
+
+        if ("knowledge".equals(searchIntent.getSearchType())) {
+            String answer = chatModel.chat("""
+                You are a helpful assistant.
+                Answer this question based on your knowledge.
+                Be concise and helpful.
+                
+                Question: %s
+                """.formatted(chatRequest.getQuestion()));
+
+            return ChatResponse.builder()
+                    .answer(answer)
+                    .matchProducts(List.of())
+                    .responseTime(LocalDateTime.now())
+                    .build();
+        }
 
         EmbeddingSearchRequest searchRequest = buildSearchRequest(searchIntent);
 
@@ -56,7 +70,6 @@ public class ChatService {
 
         log.info("Found {} matching products for question: {}", matches.size(), chatRequest.getQuestion());
 
-
         if (matches.isEmpty()) {
             return ChatResponse.builder()
                     .answer("Sorry, I couldn't find any products matching your request.")
@@ -65,19 +78,45 @@ public class ChatService {
                     .build();
         }
 
-        // Step 4: Build prompt
-        // Step 4: Build context from matches
-        String context = matches.stream()
-                .map(match -> "- " + match.embedded().text())
-                .collect(Collectors.joining("\n"));
+        FilteredContext filteredContext = buildContext(matches, searchIntent);
+        log.info("After filtering: {} products", filteredContext.getFilteredMatches().size());
 
-        String answerPrompt = buildPrompt(searchIntent, context, chatRequest.getQuestion());
+        String answerPrompt = buildPrompt(searchIntent, filteredContext, chatRequest.getQuestion());
 
+        log.info("Search intent: type={}, category={}, brand={}, semanticQuery={}",
+                searchIntent.getSearchType(),
+                searchIntent.getCategory(),
+                searchIntent.getBrand(),
+                searchIntent.getSemanticQuery()
+        );
+
+        log.info("prompt is {} :", answerPrompt);
+
+        if (filteredContext.getFilteredMatches().isEmpty()) {
+            return ChatResponse.builder()
+                    .answer("Sorry, I couldn't find any products matching your request.")
+                    .matchProducts(List.of())
+                    .responseTime(LocalDateTime.now())
+                    .build();
+        }
         String answer = chatModel.chat(answerPrompt);
 
-        List<String> matchedIds = matches.stream()
+        List<String> matchedIds = filteredContext.getFilteredMatches().stream()
                 .map(match -> match.embedded().metadata().getString("id"))
                 .collect(Collectors.toList());
+
+        // Step 8: For semantic search extract IDs from answer
+        if ("semantic".equals(searchIntent.getSearchType())) {
+            List<String> parsedIds = Arrays.stream(answer.split(",|\\n|\\s"))
+                    .map(s -> s.replaceAll("[^P0-9]", "").trim())  // remove everything except P and digits
+                    .filter(s -> s.matches("P\\d{3}"))
+                    .distinct()
+                    .collect(Collectors.toList());
+
+            if (!parsedIds.isEmpty()) {
+                matchedIds = parsedIds;
+            }
+        }
 
         return ChatResponse.builder()
                 .answer(answer)
@@ -109,9 +148,9 @@ public class ChatService {
 
         String intentPrompt = """
         Analyze this user question and extract search filters as JSON only.
-        Return ONLY this JSON structure, nothing else:
+        Return ONLY this JSON structure, nothing else, no markdown, no backticks:
         {
-          "searchType": "semantic | price | category | brand | hybrid",
+          "searchType": "semantic | price | category | brand | hybrid | knowledge",
           "minPrice": null or number,
           "maxPrice": null or number,
           "category": null or string,
@@ -119,11 +158,19 @@ public class ChatService {
           "semanticQuery": "the cleaned search query"
         }
         
+        Search types:
+        - "price"     → user asks about price range
+        - "category"  → user asks about a product category
+        - "brand"     → user asks to SEE products from a brand
+        - "hybrid"    → combination of filters
+        - "semantic"  → user asks for recommendations
+        - "knowledge" → user asks a general question, comparison, or how something works
+        
         Examples:
-        "products between 100 and 500" → {"searchType":"price","minPrice":100,"maxPrice":500,"category":null,"brand":null,"semanticQuery":"products"}
-        "show me Samsung phones" → {"searchType":"brand","minPrice":null,"maxPrice":null,"category":"Smartphones","brand":"samsung","semanticQuery":"Samsung phones"}
-        "best gaming laptop" → {"searchType":"semantic","minPrice":null,"maxPrice":null,"category":null,"brand":null,"semanticQuery":"best gaming laptop"}
-        "Nike shoes under 200" → {"searchType":"hybrid","minPrice":null,"maxPrice":200,"category":"Shoes","brand":"nike","semanticQuery":"Nike shoes"}
+        "Compare iPhone vs Samsung"  → knowledge
+        "What is the difference between OLED and QLED?" → knowledge
+        "Show me Samsung products"   → brand
+        "Best gaming laptop"         → semantic
         
         User question: %s
         """.formatted(userQuestion);
@@ -177,102 +224,162 @@ public class ChatService {
     private boolean isBroadSearch(SearchIntent intent) {
         return switch (intent.getSearchType()) {
             case "price", "category", "hybrid" -> true;  // need all data
-            case "semantic", "brand"           -> false; // topK is enough
-            default                            -> false;
+            case "semantic", "brand", "knowledge" -> false;
+            default -> false;
         };
     }
 
-    private String buildPrompt(SearchIntent intent, String context, String userQuestion) {
+    private String buildPrompt(SearchIntent intent, FilteredContext filteredContext, String userQuestion) {
+        String context = filteredContext.getContext();
+        int count = filteredContext.getFilteredMatches().size();
+
         return switch (intent.getSearchType()) {
             case "price" -> """
-                You are a product filter. Your ONLY job is to filter products by price.
-                
-                Price range requested: $%s to $%s USD
-                
-                Go through each product and check: is the price >= %s AND <= %s ?
-                If YES → include it.
-                If NO → exclude it. No exceptions.
-                
-                Products:
-                %s
-                
-                List ONLY products where price is between $%s and $%s. Nothing else.
-                Format: "Product Name - $Price - Category"
-                """.formatted(
-                    intent.getMinPrice(), intent.getMaxPrice(),
-                    intent.getMinPrice(), intent.getMaxPrice(),
-                    context,
-                    intent.getMinPrice(), intent.getMaxPrice());
+                    You are a product listing assistant.
+                    Java has already filtered these %d products for you.
+                    Your ONLY job is to list ALL %d products. Do not skip any.
+                    
+                    Products:
+                    %s
+                    
+                    List all %d products:
+                    Format: "Product Name - $Price - Category"
+                    """.formatted(count, count, context, count);
+
 
             case "category" -> """
-                You are a product filter. Your ONLY job is to filter products by category.
-                
-                Category requested: %s
-                
-                Go through each product and check: does the category match "%s"?
-                If YES → include it.
-                If NO → exclude it. No exceptions.
-                
-                Products:
-                %s
-                
-                List ONLY products in the "%s" category.
-                Format: "Product Name - $Price - Category"
-                """.formatted(
-                    intent.getCategory(), intent.getCategory(),
-                    context,
-                    intent.getCategory());
+                    You are a product listing assistant.
+                    The user is looking for: "%s" products.
+                    
+                    Review the products below and include ONLY products that are related to "%s".
+                    Rules:
+                    - Include products whose category exactly matches or is a subcategory of "%s"
+                    - Include products whose description or tags are clearly related to "%s"
+                    - Exclude products that are clearly unrelated to "%s"
+                    
+                    Products:
+                    %s
+                    
+                    List the relevant products:
+                    Format: "Product Name - $Price - Category"
+                    """.formatted(
+                    intent.getCategory(),
+                    intent.getCategory(),
+                    intent.getCategory(),
+                    intent.getCategory(),
+                    intent.getCategory(),
+                    context);
 
             case "brand" -> """
-                You are a product filter. Your ONLY job is to filter products by brand.
-                
-                Brand requested: %s
-                
-                Go through each product and check: does it belong to brand "%s"?
-                If YES → include it.
-                If NO → exclude it. No exceptions.
-                
-                Products:
-                %s
-                
-                List ONLY products from brand "%s".
-                Format: "Product Name - $Price - Category"
-                """.formatted(
+                    You are a product filter. Your ONLY job is to filter products by brand.
+                    
+                    Brand requested: %s
+                    
+                    Go through each product and check: does it belong to brand "%s"?
+                    If YES → include it.
+                    If NO → exclude it. No exceptions.
+                    
+                    Products:
+                    %s
+                    
+                    List ONLY products from brand "%s".
+                    Format: "Product Name - $Price - Category"
+                    """.formatted(
                     intent.getBrand(), intent.getBrand(),
                     context,
                     intent.getBrand());
 
             case "hybrid" -> """
-                You are a product filter. Filter products by ALL of these criteria:
-                %s%s%s
-                
-                Only include products matching ALL criteria. Exclude everything else.
-                
-                Products:
-                %s
-                
-                Format: "Product Name - $Price - Category"
-                """.formatted(
+                    You are a product filter. Filter products by ALL of these criteria:
+                    %s%s%s
+                    
+                    Only include products matching ALL criteria. Exclude everything else.
+                    
+                    Products:
+                    %s
+                    
+                    Format: "Product Name - $Price - Category"
+                    """.formatted(
                     intent.getMinPrice() != null ? "- Price >= $" + intent.getMinPrice() + "\n" : "",
                     intent.getMaxPrice() != null ? "- Price <= $" + intent.getMaxPrice() + "\n" : "",
                     intent.getBrand() != null ? "- Brand: " + intent.getBrand() + "\n" : "",
                     context);
 
-            default -> // semantic, trending, best, etc.
-                    """
-                    You are a helpful e-commerce assistant.
-                    Answer the user's question based ONLY on the products listed below.
-                    Be concise and helpful.
-                    
-                    Products:
-                    %s
-                    
-                    User Question: %s
-                    
-                    Answer:
-                    """.formatted(context, userQuestion);
+            default -> """
+        You are a helpful e-commerce assistant.
+        Answer the user's question based ONLY on the products listed below.
+        Each product starts with its ID in brackets like [P007].
+        Be concise and helpful.
+        At the end, list the IDs of products you mentioned as: "Product IDs: [list the actual IDs]"
+        
+        Products:
+        %s
+        
+        User Question: %s
+        
+        Answer:
+        """.formatted(context, userQuestion);
         };
     }
 
+    private FilteredContext buildContext(List<EmbeddingMatch<TextSegment>> matches, SearchIntent intent) {
 
+        List<EmbeddingMatch<TextSegment>> filtered = switch (intent.getSearchType()) {
+            case "price" -> matches.stream()
+                    .filter(match -> {
+                        Double price = extractPrice(match.embedded().text());
+                        if (price == null) return false;
+                        boolean aboveMin = intent.getMinPrice() == null || price >= intent.getMinPrice();
+                        boolean belowMax = intent.getMaxPrice() == null || price <= intent.getMaxPrice();
+                        return aboveMin && belowMax;
+                    })
+                    .toList();
+
+            case "category" -> matches.stream()
+                    .filter(match -> intent.getCategory() != null &&
+                            match.embedded().text().toLowerCase()
+                                    .contains(intent.getCategory().toLowerCase()))
+                    .toList();
+
+            case "brand" -> matches.stream()
+                    .filter(match -> {
+                        if (intent.getBrand() == null) return false;
+                        String text = match.embedded().text().toLowerCase();
+                        // split by comma and check if any brand matches
+                        return Arrays.stream(intent.getBrand().split(","))
+                                .map(String::trim)
+                                .anyMatch(brand -> text.contains(brand.toLowerCase()));
+                    })
+                    .toList();
+
+            default -> matches;
+        };
+
+        String context = filtered.stream()
+                .map(match -> "[" + match.embedded().metadata().getString("id") + "] "
+                        + match.embedded().text())
+                .collect(Collectors.joining("\n"));
+//
+//        String context = filtered.stream()
+//                .map(match -> "- " + match.embedded().text())
+//                .collect(Collectors.joining("\n"));
+
+        return FilteredContext.builder()
+                .context(context)
+                .filteredMatches(filtered)
+                .build();
+    }
+
+    private Double extractPrice(String content) {
+        try {
+            Pattern pattern = Pattern.compile("Price:\\s*(\\d+(?:\\.\\d+)?)\\s*USD");
+            Matcher matcher = pattern.matcher(content);
+            if (matcher.find()) {
+                return Double.parseDouble(matcher.group(1));
+            }
+        } catch (Exception e) {
+            log.warn("Failed to extract price: {}", content);
+        }
+        return null;
+    }
 }
