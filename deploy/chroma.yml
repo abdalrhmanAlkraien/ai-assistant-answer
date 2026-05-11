@@ -1,0 +1,27 @@
+services:
+  chroma:
+    image: chromadb/chroma:0.5.23
+    container_name: infra-chroma
+    ports:
+      - "8000:8000"
+#    volumes:
+#      - chroma_data:/chroma/chroma
+    networks:
+      - chroma-network
+
+  chromadb-admin:
+    image: fengzhichao/chromadb-admin:latest
+    container_name: infra-chroma-admin
+    ports:
+      - "3500:3001"
+    depends_on:
+      - chroma
+    networks:
+      - chroma-network
+
+volumes:
+  chroma_data:
+
+networks:
+  chroma-network:
+    external: true
