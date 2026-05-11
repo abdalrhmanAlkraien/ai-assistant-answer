@@ -21,5 +21,7 @@ public class SearchIntent {
     private Double maxPrice;
     private String category;
     private String brand;
-    private String semanticQuery;
+
+    @Builder.Default
+    private String semanticQuery = "";
 }

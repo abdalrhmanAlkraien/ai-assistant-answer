@@ -19,6 +19,8 @@ import java.util.List;
 @Builder
 public class ChatResponse {
 
+    private String question;
+    private String type;
     private String answer;
     List<String> matchProducts;
     private LocalDateTime responseTime;

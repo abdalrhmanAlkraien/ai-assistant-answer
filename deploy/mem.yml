@@ -1,0 +1,42 @@
+services:
+
+  mem0:
+    build:
+      context: .
+      dockerfile: Dockerfile.mem0
+    container_name: mem0-server
+    ports:
+      - "8888:8000"
+    volumes:
+      - ./mem0-config.json:/app/config.json
+
+    environment:
+      - MEM0_CONFIG_FILE=/app/config.json
+      - OPENAI_API_KEY=fake-key-not-used
+      - MEM0_DEFAULT_LLM_PROVIDER=ollama
+      - MEM0_DEFAULT_LLM_BASE_URL=http://host.docker.internal:11434
+      - MEM0_DEFAULT_LLM_MODEL=qwen2.5:7b
+      - MEM0_DEFAULT_EMBEDDER_PROVIDER=ollama
+      - MEM0_DEFAULT_EMBEDDER_BASE_URL=http://host.docker.internal:11434
+      - MEM0_DEFAULT_EMBEDDER_MODEL=nomic-embed-text
+    depends_on:
+      - qdrant
+    networks:
+      - mem0-network
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: mem0-qdrant
+    ports:
+      - "6335:6333"
+    volumes:
+      - qdrant_mem0_data:/qdrant/storage
+    networks:
+      - mem0-network
+
+volumes:
+  qdrant_mem0_data:
+
+networks:
+  mem0-network:
+    driver: bridge
