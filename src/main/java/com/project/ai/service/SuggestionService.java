@@ -24,7 +24,7 @@ public class SuggestionService {
 
     //    private final EmbeddingStore<TextSegment> embeddingStore;
 //    private final EmbeddingModel embeddingModel;
-//    private final ChatModel chatModel;
+    private final ChatModel chatModel;
 
     public String suggestionProduct(final String question, final FilteredContext suggestContext) {
 
@@ -35,9 +35,8 @@ public class SuggestionService {
                         + m.embedded().text())
                 .collect(Collectors.joining("\n"));
 
-        log.info("suggest product context: " + productsContext);
 
-        return """
+        String suggestQuestion =  """
         You are a helpful e-commerce assistant.
         The user was looking for: "%s"
         But no exact matches were found in our catalog.
@@ -54,6 +53,8 @@ public class SuggestionService {
         
         Write a friendly suggestion explaining why these products are good alternatives:
         """.formatted(question, productsContext);
+
+        return chatModel.chat(suggestQuestion);
     }
 
     public SearchIntent buildSuggestIntent(SearchIntent original) {
