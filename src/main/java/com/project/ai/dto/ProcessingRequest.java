@@ -30,6 +30,7 @@ public class ProcessingRequest {
 
     // populated by SegmentProcessor
     private List<EmbeddingMatch<TextSegment>> vectorMatches;
+    private List<EmbeddingMatch<TextSegment>> lastFilteredMatches;
 
 //    public void setMemoryContext(String memoryContext) {
 //        this.memoryContext = memoryContext;

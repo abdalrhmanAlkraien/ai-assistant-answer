@@ -4,6 +4,7 @@ import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.SearchIntent;
+import com.project.ai.service.SearchService;
 import com.project.ai.service.SuggestionService;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,6 +35,8 @@ public class SuggestionProcessor implements ChatProcessor {
     private final EmbeddingModel embeddingModel;
     private final SuggestionService suggestionService;
     private final FilterProcessor filterProcessor;
+    private final MatchedIdsResolver matchedIdsResolver;
+    private final SearchService searchService;
 
     @Override
     public boolean supports(String searchType) {
@@ -42,25 +46,48 @@ public class SuggestionProcessor implements ChatProcessor {
     @Override
     public ProcessingResult process(ProcessingRequest request) {
 
-        log.info("Start Suggest process");
+        log.info("[SuggestionProcessor] START — originalType={}",
+                request.getSearchIntent().getSearchType());
+
         SearchIntent originalIntent = request.getSearchIntent();
-        SearchIntent suggestIntent = suggestionService.buildSuggestIntent(originalIntent);
 
-        String query = suggestIntent.getSemanticQuery();
-        Embedding embedding = embeddingModel.embed(query).content();
+        // keep relaxing constraints until we find candidates
+        SearchIntent relaxedIntent = originalIntent;
 
-        EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
-                .queryEmbedding(embedding)
-                .maxResults(50)
-                .minScore(0.0)
+        FilteredContext suggestContext = FilteredContext.builder()
+                .filteredMatches(List.of())
+                .context("")
                 .build();
 
-        List<EmbeddingMatch<TextSegment>> matches = embeddingStore.search(searchRequest).matches();
-        FilteredContext suggestContext = filterProcessor.filter(matches, suggestIntent);
+        for (int step = 1; step <= 4; step++) {
+            relaxedIntent = suggestionService.buildSuggestIntent(relaxedIntent);
 
-        log.info("SuggestionProcessor: {} candidates after filter", suggestContext.getFilteredMatches().size());
+            String query = relaxedIntent.getSemanticQuery() != null
+                    ? relaxedIntent.getSemanticQuery()
+                    : originalIntent.getSemanticQuery();
+
+            log.info("[SuggestionProcessor] Relaxation step {} — brand={}, maxPrice={}, query='{}'",
+                    step, relaxedIntent.getBrand(), relaxedIntent.getMaxPrice(), query);
+
+            EmbeddingSearchRequest searchRequest = searchService.buildSearchRequest(relaxedIntent);
+
+            List<EmbeddingMatch<TextSegment>> matches = embeddingStore
+                    .search(searchRequest)
+                    .matches();
+
+            suggestContext = filterProcessor.filter(matches, relaxedIntent);
+
+            log.info("[SuggestionProcessor] Step {} candidates: {}",
+                    step, suggestContext.getFilteredMatches().size());
+
+            if (!suggestContext.getFilteredMatches().isEmpty()) {
+                log.info("[SuggestionProcessor] Found candidates at step {}", step);
+                break;
+            }
+        }
 
         if (suggestContext.getFilteredMatches().isEmpty()) {
+            log.info("[SuggestionProcessor] No candidates found after all relaxation steps");
             return ProcessingResult.builder()
                     .enrichedQuestion(originalIntent.getSemanticQuery())
                     .type("suggest")
@@ -69,15 +96,34 @@ public class SuggestionProcessor implements ChatProcessor {
                     .build();
         }
 
+        // cap to top 5 by score to avoid passing irrelevant products to LLM
+        List<EmbeddingMatch<TextSegment>> topMatches = suggestContext.getFilteredMatches().stream()
+                .sorted((a, b) -> Double.compare(b.score(), a.score()))
+                .limit(5)
+                .toList();
+
+        FilteredContext cappedContext = FilteredContext.builder()
+                .filteredMatches(topMatches)
+                .context(topMatches.stream()
+                        .map(m -> "[" + m.embedded().metadata().getString("id") + "] "
+                                + m.embedded().text())
+                        .collect(Collectors.joining("\n")))
+                .build();
+
+        log.debug("[SuggestionProcessor] Suggestion candidates:\n{}", cappedContext.getContext());
+
         String enrichedQuestion = request.getEnrichedQuestion() != null
                 ? request.getEnrichedQuestion()
                 : request.getRawQuestion();
 
-        String answer = suggestionService.suggestionProduct(enrichedQuestion, suggestContext);
 
-        List<String> matchedIds = suggestContext.getFilteredMatches().stream()
-                .map(m -> m.embedded().metadata().getString("id"))
-                .collect(Collectors.toList());
+        String answer = suggestionService.suggestionProduct(enrichedQuestion, cappedContext);
+
+        log.debug("[SuggestionProcessor] Suggestion answer:\n{}", answer);
+
+        List<String> matchedIds = matchedIdsResolver.resolve(answer, cappedContext, originalIntent);
+
+        log.info("[SuggestionProcessor] END — matchedIds={}", matchedIds);
 
         return ProcessingResult.builder()
                 .enrichedQuestion(originalIntent.getSemanticQuery())
@@ -85,5 +131,6 @@ public class SuggestionProcessor implements ChatProcessor {
                 .answer(answer)
                 .matchedIds(matchedIds)
                 .build();
+
     }
 }

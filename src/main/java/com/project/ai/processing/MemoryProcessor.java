@@ -31,8 +31,12 @@ public class MemoryProcessor implements ChatProcessor {
     }
 
     public void prepareContext(ProcessingRequest request) {
+        log.info("[MemoryProcessor] prepareContext START — userId={}", request.getUserId());
+
         String memoryContext = memoryService.memoryContext(
                 request.getUserId(), request.getRawQuestion());
+
+        log.debug("[MemoryProcessor] Memory context loaded:\n{}", memoryContext);
 
         String enriched = intentAnalyzer.enrichWithMemory(
                 request.getRawQuestion(), memoryContext);
@@ -40,11 +44,16 @@ public class MemoryProcessor implements ChatProcessor {
         request.setMemoryContext(memoryContext);
         request.setEnrichedQuestion(enriched);
 
-        log.info("Memory context loaded. Enriched question: {}", enriched);
+        log.info("[MemoryProcessor] Question enriched — from='{}' to='{}'",
+                request.getRawQuestion(), enriched);
     }
 
 
     public void saveToMemory(ProcessingRequest request, ProcessingResult result) {
+
+        log.info("[MemoryProcessor] saveToMemory START — userId={}, type={}",
+                request.getUserId(), result.getType());
+
         String[] matchedProducts = result.getMatchedIds().toArray(String[]::new);
 
         String cleanAnswer = result.getAnswer()
@@ -53,6 +62,10 @@ public class MemoryProcessor implements ChatProcessor {
                 .replaceAll("(?m)^Product Name.*$", "")
                 .trim();
 
+
+
+        log.debug("[MemoryProcessor] Saving USER message='{}'", request.getUserId());
+
         memoryService.saveMemory(
                 request.getUserId(),
                 request.getSearchIntent(),
@@ -60,11 +73,17 @@ public class MemoryProcessor implements ChatProcessor {
                 request.getSearchIntent().getSemanticQuery(),
                 matchedProducts);
 
+        log.debug("[MemoryProcessor] Saving AI answer='{}'", result.getAnswer());
+
         memoryService.saveMemory(
                 request.getUserId(),
                 request.getSearchIntent(),
                 com.project.ai.model.MessageRole.AI,
                 cleanAnswer,
                 matchedProducts);
+
+        log.debug("[MemoryProcessor] Saving matchedProducts={}", result.getMatchedIds());
+
+        log.info("[MemoryProcessor] saveToMemory END");
     }
 }

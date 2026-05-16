@@ -1,14 +1,12 @@
 package com.project.ai.processing;
 
-import com.project.ai.config.LangChain4jProperties;
 import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.SearchIntent;
-import dev.langchain4j.data.embedding.Embedding;
+import com.project.ai.service.SearchService;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
@@ -16,10 +14,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * @author: Abd-alrhman Alkraien.
@@ -32,14 +28,14 @@ import java.util.stream.Collectors;
 public class SegmentProcessor implements ChatProcessor {
 
     private static final Set<String> SUPPORTED = Set.of(
-            "semantic", "price", "category", "brand", "hybrid", "comparison", "sort");
+            "semantic", "price", "category", "brand", "hybrid", "comparison");
 
     private final EmbeddingStore<TextSegment> embeddingStore;
-    private final EmbeddingModel embeddingModel;
     private final ChatModel chatModel;
-    private final LangChain4jProperties properties;
     private final FilterProcessor filterProcessor;
     private final SuggestionProcessor suggestionProcessor;
+    private final MatchedIdsResolver matchedIdsResolver;
+    private final SearchService searchService;
 
     @Override
     public boolean supports(String searchType) {
@@ -49,22 +45,24 @@ public class SegmentProcessor implements ChatProcessor {
     @Override
     public ProcessingResult process(ProcessingRequest request) {
 
-        log.info("Start Segment Process");
+        log.info("[SegmentProcessor] START — type={}", request.getSearchIntent().getSearchType());
         SearchIntent intent = request.getSearchIntent();
 
-        EmbeddingSearchRequest searchRequest = buildSearchRequest(intent);
+        log.info("[SegmentProcessor] Building search request — semantic='{}'",
+                intent.getSemanticQuery());
+
+        EmbeddingSearchRequest searchRequest = searchService.buildSearchRequest(intent);
+
         List<EmbeddingMatch<TextSegment>> matches = embeddingStore.search(searchRequest).matches();
+        log.info("[SegmentProcessor] Vector search returned {} matches", matches.size());
 
-        log.info("SegmentProcessor: found {} vector matches", matches.size());
-
-//        if (matches.isEmpty()) {
-//            return emptyResult(request);
-//        }
 
         FilteredContext filteredContext = filterProcessor.filter(matches, intent);
+        log.info("[SegmentProcessor] After filtering: {} products", filteredContext.getFilteredMatches().size());
+        log.debug("[SegmentProcessor] Filtered products:\n{}", filteredContext.getContext());
 
         if (filteredContext.getFilteredMatches().isEmpty()) {
-            log.info("No products after filtering — delegating to SuggestionProcessor");
+            log.info("[SegmentProcessor] No products after filtering — delegating to SuggestionProcessor");
             request.setVectorMatches(matches);
             return suggestionProcessor.process(request);
         }
@@ -72,11 +70,16 @@ public class SegmentProcessor implements ChatProcessor {
         String prompt = buildPrompt(intent, filteredContext,
                 request.getRawQuestion(), request.getMemoryContext());
 
-        log.info("SegmentProcessor prompt:\n{}", prompt);
+        log.debug("[SegmentProcessor] Prompt sent to LLM:\n{}", prompt);
+
         String answer = chatModel.chat(prompt);
+        log.debug("[SegmentProcessor] LLM answer:\n{}", answer);
+
+        matchedIdsResolver.resolve(answer, filteredContext, intent);
 
         // 5. Extract matched IDs
-        List<String> matchedIds = extractMatchedIds(answer, filteredContext, intent);
+        List<String> matchedIds = matchedIdsResolver.resolve(answer, filteredContext, intent);
+        log.info("[SegmentProcessor] END — matchedIds={}", matchedIds);
 
         return ProcessingResult.builder()
                 .enrichedQuestion(intent.getSemanticQuery())
@@ -84,68 +87,6 @@ public class SegmentProcessor implements ChatProcessor {
                 .answer(answer)
                 .matchedIds(matchedIds)
                 .build();
-    }
-
-
-    private EmbeddingSearchRequest buildSearchRequest(SearchIntent intent) {
-
-        String query = resolveQuery(intent);
-
-        Embedding queryEmbedding = embeddingModel
-                .embed(query)
-                .content();
-
-        if (isBroadSearch(intent)) {
-            return EmbeddingSearchRequest.builder()
-                    .queryEmbedding(queryEmbedding)
-                    .maxResults(50)
-                    .minScore(0.0)
-                    .build();
-        }
-
-        return EmbeddingSearchRequest.builder()
-                .queryEmbedding(queryEmbedding)
-                .maxResults(properties.getVectorStore().getChroma().getTopKMax())
-                .minScore(properties.getVectorStore().getChroma().getDefaultMinScoreThreshold())
-                .build();
-    }
-
-    private String resolveQuery(SearchIntent intent) {
-        if (intent.getSemanticQuery() != null && !intent.getSemanticQuery().isBlank())
-            return intent.getSemanticQuery();
-        if (intent.getCategory() != null) return intent.getCategory();
-        if (intent.getBrand() != null) return intent.getBrand();
-        return "product";
-    }
-
-    private boolean isBroadSearch(SearchIntent intent) {
-        return switch (intent.getSearchType()) {
-            case "price", "category", "hybrid", "suggest" -> true;  // need all data
-            case "semantic", "brand", "knowledge", "comparison" -> false;
-            default -> false;
-        };
-    }
-
-
-    private List<String> extractMatchedIds(
-            String answer,
-            FilteredContext context,
-            SearchIntent intent) {
-
-        List<String> ids = context.getFilteredMatches().stream()
-                .map(m -> m.embedded().metadata().getString("id"))
-                .collect(Collectors.toList());
-
-        if ("semantic".equals(intent.getSearchType()) || "comparison".equals(intent.getSearchType())) {
-            List<String> parsed = Arrays.stream(answer.split(",|\\n|\\s"))
-                    .map(s -> s.replaceAll("[^P0-9]", "").trim())
-                    .filter(s -> s.matches("P\\d{3}"))
-                    .distinct()
-                    .collect(Collectors.toList());
-            if (!parsed.isEmpty()) return parsed;
-        }
-
-        return ids;
     }
 
     private String buildPrompt(
@@ -254,7 +195,8 @@ public class SegmentProcessor implements ChatProcessor {
                     %s%s
                     Rules:
                     - Only recommend products that are relevant to the user's request
-                    - Respect any price constraints — do NOT recommend products outside the price range
+                    - %s
+                    - Prioritize the product that BEST matches the use case, not the cheapest one
                     - Be concise and explain why each product fits
                     - At the end list: "Product IDs: ..."
                     
@@ -266,6 +208,9 @@ public class SegmentProcessor implements ChatProcessor {
                     intent.getSemanticQuery(),
                     intent.getMaxPrice() != null ? "- Max price: $" + intent.getMaxPrice() + "\n" : "",
                     intent.getCategory() != null ? "- Category: " + intent.getCategory() + "\n" : "",
+                    intent.getMaxPrice() != null
+                            ? "Respect the price constraint — do NOT recommend products above $" + intent.getMaxPrice()
+                            : "There is NO price constraint — recommend the BEST product for the use case regardless of price",
                     context,
                     memorySection);
 

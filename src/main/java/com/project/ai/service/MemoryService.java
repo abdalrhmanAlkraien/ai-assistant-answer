@@ -35,7 +35,14 @@ public class MemoryService {
             final Long userId,
             final String userQuery
     ) {
-        if (userId == null) return "";
+
+        log.info("[MemoryService] START");
+
+        if (userId == null) {
+
+            log.warn("[MemoryService] User id is null");
+            return "";
+        }
 
         String vectorQuery = toVectorString(convertToVector(userQuery));
 
@@ -45,7 +52,7 @@ public class MemoryService {
         Map<Long, ConversationMemory> merged = mergeConversation(similar, recent);
 
         if (merged.isEmpty()) {
-            log.info("No memory found for user: {}", userId);
+            log.info("[MemoryService] No memory found for user: {}", userId);
             return "";
         }
 
@@ -57,10 +64,10 @@ public class MemoryService {
                         : "Assistant: " + m.getMessage())
                 .collect(Collectors.joining("\n"));
 
-        log.info("Built memory context for user {} with {} messages",
+        log.info("[MemoryService] Built memory context for user {} with {} messages",
                 userId, merged.size());
 
-        log.info("Memory context: {}", context);
+        log.debug("[MemoryService] the memory context is : {}", context);
 
         return context;
     }
@@ -98,7 +105,7 @@ public class MemoryService {
 
         String vectorQuery = toVectorString(convertToVector(query));
 
-        log.info("Conversation memory for {} ", role.name());
+        log.info("[MemoryService] - Conversation memory for {} ", role.name());
         memoryRepository.insertMemory(
                 userId,
                 role.name(),

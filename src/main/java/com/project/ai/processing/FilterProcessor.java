@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 public class FilterProcessor {
 
     public FilteredContext filter(List<EmbeddingMatch<TextSegment>> matches, SearchIntent intent) {
+        log.info("[FilterProcessor] START — type={}", intent.getSearchType());
 
         List<EmbeddingMatch<TextSegment>> filtered = switch (intent.getSearchType()) {
             case "price" -> matches.stream()
@@ -157,6 +158,29 @@ public class FilterProcessor {
                         return priceMatch && categoryMatch;
                     })
                     .toList();
+            case "sort" -> matches.stream()
+                    .filter(match -> {
+                        String text = match.embedded().text().toLowerCase();
+
+                        boolean categoryMatch = intent.getCategory() == null
+                                || text.contains(intent.getCategory().toLowerCase());
+
+                        boolean brandMatch = intent.getBrand() == null
+                                || Arrays.stream(intent.getBrand().split(","))
+                                .map(String::trim)
+                                .anyMatch(b -> text.contains(b.toLowerCase()));
+
+                        boolean aboveMin = intent.getMinPrice() == null
+                                || extractPrice(match.embedded().text()) == null
+                                || extractPrice(match.embedded().text()) >= intent.getMinPrice();
+
+                        boolean belowMax = intent.getMaxPrice() == null
+                                || extractPrice(match.embedded().text()) == null
+                                || extractPrice(match.embedded().text()) <= intent.getMaxPrice();
+
+                        return categoryMatch && brandMatch && aboveMin && belowMax;
+                    })
+                    .toList();
 
             default -> matches;
         };
@@ -181,7 +205,7 @@ public class FilterProcessor {
                 return Double.parseDouble(matcher.group(1));
             }
         } catch (Exception e) {
-            log.warn("Failed to extract price: {}", content);
+            log.warn("[FilterProcessor] Failed to extract price: {}", content);
         }
         return null;
     }

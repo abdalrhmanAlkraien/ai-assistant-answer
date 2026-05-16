@@ -29,7 +29,7 @@ public class KnowledgeProcessor implements ChatProcessor {
 
     @Override
     public ProcessingResult process(ProcessingRequest request) {
-        log.info("KnowledgeProcessor handling question: {}", request.getEnrichedQuestion());
+        log.info("[KnowledgeProcessor] START — question='{}'", request.getRawQuestion());
 
         String answer = chatModel.chat("""
                 You are a helpful assistant.
@@ -38,6 +38,10 @@ public class KnowledgeProcessor implements ChatProcessor {
                 
                 Question: %s
                 """.formatted(request.getRawQuestion()));
+
+        log.debug("[KnowledgeProcessor] LLM answer:\n{}", answer);
+
+        log.info("[KnowledgeProcessor] END");
 
         return ProcessingResult.builder()
                 .enrichedQuestion(request.getEnrichedQuestion())

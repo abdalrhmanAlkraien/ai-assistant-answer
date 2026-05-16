@@ -25,6 +25,8 @@ public class ChatService {
 
     public ChatResponse chat(final Long userId, final ChatRequest chatRequest) {
 
+        log.info("[ChatService] START — userId ={}, question={}", userId, chatRequest.getQuestion());
+
         ProcessingRequest request = ProcessingRequest.builder()
                 .userId(userId)
                 .rawQuestion(chatRequest.getQuestion())
@@ -39,21 +41,5 @@ public class ChatService {
                 .matchProducts(result.getMatchedIds())
                 .responseTime(LocalDateTime.now())
                 .build();
-
-        /**
-         * Type of search on the vector DB is
-         * 1- Semantic Search
-         * 2- Exact search
-         * 3- Range filter
-         */
-
-        /**
-         * Question what is the  TextSegment here   private final EmbeddingStore<TextSegment> embeddingStore;
-         * what is the type of EmbeddingStore?
-         */
-        /**
-         * 1-  we need embeded questino becouse the data store as a vectors
-         * 2-
-         */
     }
 }
