@@ -1,11 +1,13 @@
-package com.project.ai.processing;
+package com.project.ai.processing.text.english;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.ai.dto.SearchIntent;
+import com.project.ai.processing.text.structure.IntentAnalyzer;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 /**
@@ -14,20 +16,28 @@ import org.springframework.stereotype.Service;
  * @Time: 9:08 PM
  */
 @Service
-@RequiredArgsConstructor
 @Log4j2
-public class IntentAnalyzer {
+public class EnglishIntentAnalyzer implements IntentAnalyzer {
 
     private final ChatModel chatModel;
     private final ObjectMapper mapper;
 
+    public EnglishIntentAnalyzer(
+            @Qualifier("englishChatModel") final ChatModel chatModel,
+            final ObjectMapper mapper
+    ) {
+        this.chatModel = chatModel;
+        this.mapper = mapper;
+    }
+
+    @Override
     public String enrichWithMemory(String question, String memoryContext) {
 
-        log.info("[IntentAnalyzer] enrichWithMemory — question='{}'", question);
-        log.debug("[IntentAnalyzer] Memory context for enrichment:\n{}", memoryContext);
+        log.info("[EnglishIntentAnalyzer] enrichWithMemory — question='{}'", question);
+        log.debug("[EnglishIntentAnalyzer] Memory context for enrichment:\n{}", memoryContext);
 
         if (memoryContext == null || memoryContext.isBlank()) {
-            log.info("Memory context is blank");
+            log.info("[EnglishIntentAnalyzer] - Memory context is blank");
             return question;
         }
 
@@ -142,7 +152,7 @@ public class IntentAnalyzer {
 
         try {
             String enriched = chatModel.chat(prompt);
-            log.info("[IntentAnalyzer] Enrichment result='{}'", enriched);
+            log.info("[EnglishIntentAnalyzer] Enrichment result='{}'", enriched);
             return enriched.trim();
         } catch (Exception e) {
             log.warn("Failed to enrich question: {}", e.getMessage());
@@ -150,11 +160,11 @@ public class IntentAnalyzer {
         }
     }
 
-
+    @Override
     public SearchIntent extractIntent(String userQuestion) {
 
 
-        log.debug("[IntentAnalyzer] Raw intent JSON:\n{}", userQuestion);
+        log.debug("[EnglishIntentAnalyzer] Raw intent JSON:\n{}", userQuestion);
 
         boolean ignorePriceHint = userQuestion.toLowerCase().matches(
                 ".*\\b(without.*price|ignore.*price|no.*budget|any.*price|" +
@@ -166,66 +176,66 @@ public class IntentAnalyzer {
                 : "";
 
         String intentPrompt = """
-        Analyze this user question and extract search filters as JSON only.
-        Return ONLY this JSON structure, nothing else, no markdown, no backticks:
-        {
-          "searchType": "semantic | price | category | brand | hybrid | knowledge | comparison | suggest | sort",
-          "minPrice": null or number,
-          "maxPrice": null or number,
-          "category": null or string,
-          "brand": null or string,
-          "semanticQuery": "the cleaned search query",
-          "sortDirection": null or "asc" or "desc"
-        }
-        
-        %s
-        Search types:
-        - "price"      → user asks about price range only
-        - "category"   → user asks about a product category
-        - "brand"      → user asks to SEE products from a brand
-        - "hybrid"     → combination of two or more filters (brand+price, category+price, etc.)
-        - "semantic"   → user asks for recommendations or best product for a use case
-        - "knowledge"  → user asks a general question or how something works (no product search needed)
-        - "comparison" → user asks to compare, rank, find cheaper/better/best between specific products
-                         ONLY extract brand if explicitly mentioned in the question
-                         NEVER extract category from comparison questions — set category to null always
-                         sortDirection must always be null for comparison
-        - "suggest"    → user asks for alternatives or similar products
-        - "sort"       → user wants to sort already returned products by price or name
-                         extract category and brand from the sort query if present
-                         "sort laptops ascending" → category: "laptops", sortDirection: "asc"
-                         "sort Samsung phones descending" → brand: "Samsung", sortDirection: "desc"
-        
-        For "sort" type: set sortDirection to "asc" for ascending/cheapest first, "desc" for descending/most expensive first.
-        For "comparison" type: set sortDirection to null always, set category to null always.
-        For all other types: set sortDirection to null.
-        
-        Examples:
-        "Compare iPhone vs Samsung"                    → knowledge
-        "What is the difference between OLED and QLED?" → knowledge
-        "Show me Samsung products"                     → brand
-        "Best gaming laptop"                           → semantic
-        "which one is cheaper?"                        → comparison, brand: null, category: null, sortDirection: null
-        "which Samsung smartphone is cheaper?"         → comparison, brand: "Samsung", category: null, sortDirection: null
-        "which is better value?"                       → comparison, brand: null, category: null, sortDirection: null
-        "what is the price difference?"                → comparison, brand: null, category: null, sortDirection: null
-        "which is better, iPhone or Samsung?"          → comparison, brand: null, category: null, sortDirection: null
-        "products between 100 and 500"                 → price
-        "show me laptops under $500"                   → hybrid
-        "show me Samsung laptops under $500"           → hybrid
-        "sort laptops ascending"                       → sort, category: "laptops", sortDirection: "asc"
-        "sort Samsung phones descending"               → sort, brand: "Samsung", sortDirection: "desc"
-        "order by price descending"                    → sort, sortDirection: "desc"
-        "cheapest first"                               → sort, sortDirection: "asc"
-        "most expensive first"                         → sort, sortDirection: "desc"
-        "show me alternatives"                         → suggest
-        "give me something similar"                    → suggest
-        
-        User question: %s
-        """.formatted(priceInstruction, userQuestion);
+                Analyze this user question and extract search filters as JSON only.
+                Return ONLY this JSON structure, nothing else, no markdown, no backticks:
+                {
+                  "searchType": "semantic | price | category | brand | hybrid | knowledge | comparison | suggest | sort",
+                  "minPrice": null or number,
+                  "maxPrice": null or number,
+                  "category": null or string,
+                  "brand": null or string,
+                  "semanticQuery": "the cleaned search query",
+                  "sortDirection": null or "asc" or "desc"
+                }
+                
+                %s
+                Search types:
+                - "price"      → user asks about price range only
+                - "category"   → user asks about a product category
+                - "brand"      → user asks to SEE products from a brand
+                - "hybrid"     → combination of two or more filters (brand+price, category+price, etc.)
+                - "semantic"   → user asks for recommendations or best product for a use case
+                - "knowledge"  → user asks a general question or how something works (no product search needed)
+                - "comparison" → user asks to compare, rank, find cheaper/better/best between specific products
+                                 ONLY extract brand if explicitly mentioned in the question
+                                 NEVER extract category from comparison questions — set category to null always
+                                 sortDirection must always be null for comparison
+                - "suggest"    → user asks for alternatives or similar products
+                - "sort"       → user wants to sort already returned products by price or name
+                                 extract category and brand from the sort query if present
+                                 "sort laptops ascending" → category: "laptops", sortDirection: "asc"
+                                 "sort Samsung phones descending" → brand: "Samsung", sortDirection: "desc"
+                
+                For "sort" type: set sortDirection to "asc" for ascending/cheapest first, "desc" for descending/most expensive first.
+                For "comparison" type: set sortDirection to null always, set category to null always.
+                For all other types: set sortDirection to null.
+                
+                Examples:
+                "Compare iPhone vs Samsung"                    → knowledge
+                "What is the difference between OLED and QLED?" → knowledge
+                "Show me Samsung products"                     → brand
+                "Best gaming laptop"                           → semantic
+                "which one is cheaper?"                        → comparison, brand: null, category: null, sortDirection: null
+                "which Samsung smartphone is cheaper?"         → comparison, brand: "Samsung", category: null, sortDirection: null
+                "which is better value?"                       → comparison, brand: null, category: null, sortDirection: null
+                "what is the price difference?"                → comparison, brand: null, category: null, sortDirection: null
+                "which is better, iPhone or Samsung?"          → comparison, brand: null, category: null, sortDirection: null
+                "products between 100 and 500"                 → price
+                "show me laptops under $500"                   → hybrid
+                "show me Samsung laptops under $500"           → hybrid
+                "sort laptops ascending"                       → sort, category: "laptops", sortDirection: "asc"
+                "sort Samsung phones descending"               → sort, brand: "Samsung", sortDirection: "desc"
+                "order by price descending"                    → sort, sortDirection: "desc"
+                "cheapest first"                               → sort, sortDirection: "asc"
+                "most expensive first"                         → sort, sortDirection: "desc"
+                "show me alternatives"                         → suggest
+                "give me something similar"                    → suggest
+                
+                User question: %s
+                """.formatted(priceInstruction, userQuestion);
 
         String intentJson = chatModel.chat(intentPrompt);
-        log.debug("[IntentAnalyzer] Raw intent JSON:\n{}", intentJson);
+        log.debug("[EnglishIntentAnalyzer] Raw intent JSON:\n{}", intentJson);
 
         try {
             // clean markdown backticks if LLM adds them
@@ -237,7 +247,7 @@ public class IntentAnalyzer {
             return mapper.readValue(cleaned, SearchIntent.class);
 
         } catch (JsonProcessingException e) {
-            log.warn("[IntentAnalyzer] Failed to parse intent, falling back to pure semantic search: {}", e.getMessage());
+            log.warn("[EnglishIntentAnalyzer] Failed to parse intent, falling back to pure semantic search: {}", e.getMessage());
             // fallback — treat as pure semantic search
             return SearchIntent.builder()
                     .searchType("semantic")

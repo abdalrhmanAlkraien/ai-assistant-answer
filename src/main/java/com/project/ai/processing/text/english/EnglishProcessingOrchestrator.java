@@ -1,39 +1,39 @@
-package com.project.ai.processing;
+package com.project.ai.processing.text.english;
 
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.SearchIntent;
+import com.project.ai.processing.text.structure.ProcessingOrchestrator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 /**
  * @author: Abd-alrhman Alkraien.
  * @Date: 12/05/2026
  * @Time: 9:18 PM
  */
-@Service
+@Service("englishProcessingOrchestrator")
 @RequiredArgsConstructor
 @Log4j2
-public class ProcessingOrchestrator {
+public class EnglishProcessingOrchestrator implements ProcessingOrchestrator {
 
-    private final MemoryProcessor memoryProcessor;
-    private final IntentAnalyzer intentAnalyzer;
-    private final SegmentProcessor segmentProcessor;
-    private final SuggestionProcessor suggestionProcessor;
-    private final KnowledgeProcessor knowledgeProcessor;
-    private final SortProcessor sortProcessor;
+    private final EnglishMemoryProcessor englishMemoryProcessor;
+    private final EnglishIntentAnalyzer englishIntentAnalyzer;
+    private final EnglishSegmentProcessor englishSegmentProcessor;
+    private final EnglishSuggestionProcessor englishSuggestionProcessor;
+    private final EnglishKnowledgeProcessor englishKnowledgeProcessor;
+    private final EnglishSortProcessor englishSortProcessor;
 
-    public ProcessingResult process(ProcessingRequest request) {
+    @Override
+    public ProcessingResult process(final ProcessingRequest request) {
 
         log.info("[Orchestrator] START — userId={}, question='{}'",
                 request.getUserId(), request.getRawQuestion());
 
-        memoryProcessor.prepareContext(request);
+        englishMemoryProcessor.prepareContext(request);
 
-        SearchIntent intent = intentAnalyzer.extractIntent(request.getEnrichedQuestion());
+        SearchIntent intent = englishIntentAnalyzer.extractIntent(request.getEnrichedQuestion());
 
         log.info("[Orchestrator] Parsed intent — type={}, category={}, brand={}, " +
                         "minPrice={}, maxPrice={}, sortDirection={}, semantic='{}'",
@@ -53,46 +53,47 @@ public class ProcessingOrchestrator {
                 result.getType(), result.getMatchedIds().size(),
                 result.getAnswer() != null ? result.getAnswer().length() : 0);
 
-        memoryProcessor.saveToMemory(request, result);
+        englishMemoryProcessor.saveToMemory(request, result);
 
         log.info("[Orchestrator] END — userId={}", request.getUserId());
 
         return result;
     }
 
-    private ProcessingResult route(ProcessingRequest request) {
+    @Override
+    public ProcessingResult route(ProcessingRequest request) {
         String type = request.getSearchIntent().getSearchType();
 
         log.info("[Orchestrator] Start Routing process");
 
         // knowledge — no vector search needed
-        if (knowledgeProcessor.supports(type)) {
+        if (englishKnowledgeProcessor.supports(type)) {
 
             log.info("[Orchestrator] Routing to processor — type={}", type);
-            return knowledgeProcessor.process(request);
+            return englishKnowledgeProcessor.process(request);
         }
 
         // suggest — direct path (user explicitly asked for suggestions)
-        if (suggestionProcessor.supports(type)) {
+        if (englishSuggestionProcessor.supports(type)) {
 
             log.info("[Orchestrator] Routing to processor — type={}", type);
-            return suggestionProcessor.process(request);
+            return englishSuggestionProcessor.process(request);
         }
 
-        if(sortProcessor.supports(type)) {
-            return sortProcessor.process(request);
+        if (englishSortProcessor.supports(type)) {
+            return englishSortProcessor.process(request);
         }
 
         // all other types — try segment first
-        if (segmentProcessor.supports(type)) {
+        if (englishSegmentProcessor.supports(type)) {
             log.info("[Orchestrator] Routing to processor — type={}", type);
-            ProcessingResult result = segmentProcessor.process(request);
+            ProcessingResult result = englishSegmentProcessor.process(request);
 
             // if segment found nothing → orchestrator decides to fallback
             if (result.getMatchedIds().isEmpty()) {
                 log.info("[Orchestrator] SegmentProcessor returned empty — orchestrator falling back to SuggestionProcessor");
                 log.info("[Orchestrator] Routing to processor — type={}", type);
-                return suggestionProcessor.process(request);
+                return englishSuggestionProcessor.process(request);
             }
 
             return result;

@@ -1,42 +1,59 @@
-package com.project.ai.processing;
+package com.project.ai.processing.text.arabic;
 
+import com.project.ai.agents.Language;
 import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.SearchIntent;
+import com.project.ai.processing.ChatProcessor;
+import com.project.ai.processing.text.structure.FilterProcessor;
+import com.project.ai.processing.text.structure.MatchedIdsResolver;
 import com.project.ai.service.SearchService;
 import com.project.ai.service.SuggestionService;
-import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
  * @author: Abd-alrhman Alkraien.
- * @Date: 12/05/2026
- * @Time: 9:24 PM
+ * @Date: 16/05/2026
+ * @Time: 11:28 PM
  */
 @Service
-@RequiredArgsConstructor
 @Log4j2
-public class SuggestionProcessor implements ChatProcessor {
+public class ArabicSuggestionProcessor implements ChatProcessor {
 
     private final EmbeddingStore<TextSegment> embeddingStore;
-    private final EmbeddingModel embeddingModel;
     private final SuggestionService suggestionService;
-    private final FilterProcessor filterProcessor;
+    private final FilterProcessor arabicFilterProcessor;
     private final MatchedIdsResolver matchedIdsResolver;
     private final SearchService searchService;
+    private final ChatModel chatModel;
+
+    public ArabicSuggestionProcessor(
+            final EmbeddingStore<TextSegment> embeddingStore,
+            final SuggestionService suggestionService,
+            final FilterProcessor arabicFilterProcessor,
+            final MatchedIdsResolver matchedIdsResolver,
+            final SearchService searchService,
+            @Qualifier("arabicChatModel") ChatModel chatModel
+    ) {
+
+        this.embeddingStore = embeddingStore;
+        this.suggestionService = suggestionService;
+        this.matchedIdsResolver = matchedIdsResolver;
+        this.arabicFilterProcessor = arabicFilterProcessor;
+        this.searchService = searchService;
+        this.chatModel = chatModel;
+    }
 
     @Override
     public boolean supports(String searchType) {
@@ -46,7 +63,7 @@ public class SuggestionProcessor implements ChatProcessor {
     @Override
     public ProcessingResult process(ProcessingRequest request) {
 
-        log.info("[SuggestionProcessor] START — originalType={}",
+        log.info("[ArabicSuggestionProcessor] START — originalType={}",
                 request.getSearchIntent().getSearchType());
 
         SearchIntent originalIntent = request.getSearchIntent();
@@ -66,7 +83,7 @@ public class SuggestionProcessor implements ChatProcessor {
                     ? relaxedIntent.getSemanticQuery()
                     : originalIntent.getSemanticQuery();
 
-            log.info("[SuggestionProcessor] Relaxation step {} — brand={}, maxPrice={}, query='{}'",
+            log.info("[ArabicSuggestionProcessor] Relaxation step {} — brand={}, maxPrice={}, query='{}'",
                     step, relaxedIntent.getBrand(), relaxedIntent.getMaxPrice(), query);
 
             EmbeddingSearchRequest searchRequest = searchService.buildSearchRequest(relaxedIntent);
@@ -75,26 +92,27 @@ public class SuggestionProcessor implements ChatProcessor {
                     .search(searchRequest)
                     .matches();
 
-            suggestContext = filterProcessor.filter(matches, relaxedIntent);
+            suggestContext = arabicFilterProcessor.filter(matches, relaxedIntent);
 
-            log.info("[SuggestionProcessor] Step {} candidates: {}",
+            log.info("[ArabicSuggestionProcessor] Step {} candidates: {}",
                     step, suggestContext.getFilteredMatches().size());
 
             if (!suggestContext.getFilteredMatches().isEmpty()) {
-                log.info("[SuggestionProcessor] Found candidates at step {}", step);
+                log.info("[ArabicSuggestionProcessor] Found candidates at step {}", step);
                 break;
             }
         }
 
         if (suggestContext.getFilteredMatches().isEmpty()) {
-            log.info("[SuggestionProcessor] No candidates found after all relaxation steps");
+            log.info("[ArabicSuggestionProcessor] No candidates found after all relaxation steps");
             return ProcessingResult.builder()
                     .enrichedQuestion(originalIntent.getSemanticQuery())
                     .type("suggest")
-                    .answer("Sorry, no products found matching your criteria.")
+                    .answer("عذراً، لم نجد منتجات تطابق معاييرك.")
                     .matchedIds(List.of())
                     .build();
         }
+
 
         // cap to top 5 by score to avoid passing irrelevant products to LLM
         List<EmbeddingMatch<TextSegment>> topMatches = suggestContext.getFilteredMatches().stream()
@@ -109,21 +127,21 @@ public class SuggestionProcessor implements ChatProcessor {
                                 + m.embedded().text())
                         .collect(Collectors.joining("\n")))
                 .build();
-
-        log.debug("[SuggestionProcessor] Suggestion candidates:\n{}", cappedContext.getContext());
+        log.debug("[ArabicSuggestionProcessor] Suggestion candidates:\n{}", cappedContext.getContext());
 
         String enrichedQuestion = request.getEnrichedQuestion() != null
                 ? request.getEnrichedQuestion()
                 : request.getRawQuestion();
 
 
-        String answer = suggestionService.suggestionProduct(enrichedQuestion, cappedContext);
+        String question = suggestionService.suggestionProduct(enrichedQuestion, cappedContext, Language.ARABIC);
+        String answer = chatModel.chat(question);
 
-        log.debug("[SuggestionProcessor] Suggestion answer:\n{}", answer);
+        log.debug("[ArabicSuggestionProcessor] Suggestion answer:\n{}", answer);
 
         List<String> matchedIds = matchedIdsResolver.resolve(answer, cappedContext, originalIntent);
 
-        log.info("[SuggestionProcessor] END — matchedIds={}", matchedIds);
+        log.info("[ArabicSuggestionProcessor] END — matchedIds={}", matchedIds);
 
         return ProcessingResult.builder()
                 .enrichedQuestion(originalIntent.getSemanticQuery())
@@ -131,6 +149,5 @@ public class SuggestionProcessor implements ChatProcessor {
                 .answer(answer)
                 .matchedIds(matchedIds)
                 .build();
-
     }
 }

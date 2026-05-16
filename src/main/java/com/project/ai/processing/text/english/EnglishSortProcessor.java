@@ -1,13 +1,14 @@
-package com.project.ai.processing;
+package com.project.ai.processing.text.english;
 
 import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.SearchIntent;
+import com.project.ai.processing.ChatProcessor;
+import com.project.ai.processing.text.structure.FilterProcessor;
+import com.project.ai.processing.text.structure.MatchedIdsResolver;
 import com.project.ai.service.SearchService;
-import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
-import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
@@ -28,10 +29,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Log4j2
-public class SortProcessor implements ChatProcessor{
+public class EnglishSortProcessor implements ChatProcessor {
 
     private final EmbeddingStore<TextSegment> embeddingStore;
-    private final EmbeddingModel embeddingModel;
     private final FilterProcessor filterProcessor;
     private final MatchedIdsResolver matchedIdsResolver;
     private final SearchService searchService;
@@ -45,7 +45,7 @@ public class SortProcessor implements ChatProcessor{
     public ProcessingResult process(ProcessingRequest request) {
 
         SearchIntent intent = request.getSearchIntent();
-        log.info("[SortProcessor] START — direction={}", intent.getSortDirection());
+        log.info("[EnglishSortProcessor] START — direction={}", intent.getSortDirection());
 
         // re-search using enriched question to get relevant products
         String query = request.getEnrichedQuestion() != null
@@ -58,11 +58,11 @@ public class SortProcessor implements ChatProcessor{
                 .search(searchRequest)
                 .matches();
 
-        log.info("[SortProcessor] Vector search returned {} matches", matches.size());
+        log.info("[EnglishSortProcessor] Vector search returned {} matches", matches.size());
 
         FilteredContext filteredContext = filterProcessor.filter(matches, intent);
 
-        log.info("[SortProcessor] After filter: {} products",
+        log.info("[EnglishSortProcessor] After filter: {} products",
                 filteredContext.getFilteredMatches().size());
 
 
@@ -86,8 +86,8 @@ public class SortProcessor implements ChatProcessor{
 
         String answer = sorted.stream()
                 .map(m -> {
-                    String title    = extractField(m.embedded().text(), "Title");
-                    String price    = extractField(m.embedded().text(), "Price");
+                    String title = extractField(m.embedded().text(), "Title");
+                    String price = extractField(m.embedded().text(), "Price");
                     String category = extractField(m.embedded().text(), "Category");
                     return title + " - " + price + " - " + category;
                 })
@@ -100,7 +100,7 @@ public class SortProcessor implements ChatProcessor{
 
         List<String> matchedIds = matchedIdsResolver.resolve("", sortedContext, intent);
 
-        log.info("[SortProcessor] END — sorted={}, direction={}",
+        log.info("[EnglishSortProcessor] END — sorted={}, direction={}",
                 sorted.size(), ascending ? "asc" : "desc");
 
         return ProcessingResult.builder()
@@ -117,7 +117,7 @@ public class SortProcessor implements ChatProcessor{
             Matcher matcher = pattern.matcher(content);
             if (matcher.find()) return Double.parseDouble(matcher.group(1));
         } catch (Exception e) {
-            log.warn("[SortProcessor] Failed to extract price from: {}", content);
+            log.warn("[EnglishSortProcessor] Failed to extract price from: {}", content);
         }
         return null;
     }

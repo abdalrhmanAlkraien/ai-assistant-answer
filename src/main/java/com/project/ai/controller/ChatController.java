@@ -3,6 +3,8 @@ package com.project.ai.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.project.ai.dto.ChatRequest;
 import com.project.ai.dto.ChatResponse;
+import com.project.ai.dto.MultimodalRequest;
+import com.project.ai.dto.MultimodalResponse;
 import com.project.ai.service.ChatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +28,7 @@ public class ChatController {
     private final ChatService chatService;
 
     @PostMapping("/chat/{id}")
-    public ResponseEntity<ChatResponse> chat(
+    public ResponseEntity<MultimodalResponse> chat(
             @PathVariable("id") final Long userId,
             final @RequestBody ChatRequest chatRequest) throws JsonProcessingException {
 

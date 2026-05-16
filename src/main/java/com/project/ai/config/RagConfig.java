@@ -17,6 +17,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Primary;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
@@ -61,6 +62,27 @@ public class RagConfig {
                 .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
                 .modelName(properties.getChatModel().getOllama().getModelName())
                 .temperature(0.7)
+                .timeout(Duration.ofMinutes(2))
+                .build();
+    }
+
+    @Bean("englishChatModel")
+    @Primary
+    public ChatModel englishChatModel(LangChain4jProperties properties) {
+        return OllamaChatModel.builder()
+                .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
+                .modelName(properties.getChatModel().getOllama().getEnglishModelName())
+                .temperature(properties.getChatModel().getOllama().getTemperature())
+                .timeout(Duration.ofMinutes(2))
+                .build();
+    }
+
+    @Bean("arabicChatModel")
+    public ChatModel arabicChatModel(LangChain4jProperties properties) {
+        return OllamaChatModel.builder()
+                .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
+                .modelName(properties.getChatModel().getOllama().getArabicModelName())
+                .temperature(properties.getChatModel().getOllama().getTemperature())
                 .timeout(Duration.ofMinutes(2))
                 .build();
     }

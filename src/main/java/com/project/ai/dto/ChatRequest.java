@@ -14,5 +14,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ChatRequest {
 
+    private String imageBase64;
+    private String imageMediaType;
     private String question;
 }

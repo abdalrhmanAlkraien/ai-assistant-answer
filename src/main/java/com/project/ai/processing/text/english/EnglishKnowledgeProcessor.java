@@ -1,10 +1,12 @@
-package com.project.ai.processing;
+package com.project.ai.processing.text.english;
 
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
+import com.project.ai.processing.ChatProcessor;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,12 +17,14 @@ import java.util.List;
  * @Time: 9:51 PM
  */
 @Service
-@RequiredArgsConstructor
 @Log4j2
-public class KnowledgeProcessor implements ChatProcessor {
+public class EnglishKnowledgeProcessor implements ChatProcessor {
 
     private final ChatModel chatModel;
 
+    public EnglishKnowledgeProcessor(@Qualifier("englishChatModel") final ChatModel chatModel) {
+        this.chatModel = chatModel;
+    }
 
     @Override
     public boolean supports(String searchType) {

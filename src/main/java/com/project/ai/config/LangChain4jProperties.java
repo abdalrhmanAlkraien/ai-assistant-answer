@@ -70,6 +70,12 @@ public class LangChain4jProperties {
             @NotBlank
             private String baseUrl;
             @NotBlank
+            private String arabicModelName;
+
+            @NotBlank
+            private String englishModelName;
+
+            @NotBlank
             private String modelName;
             private double temperature = 0.7;
             private Duration timeout = Duration.ofSeconds(60);

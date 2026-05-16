@@ -1,4 +1,4 @@
-package com.project.ai.processing;
+package com.project.ai.processing.text.structure;
 
 import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.SearchIntent;

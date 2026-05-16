@@ -1,17 +1,20 @@
-package com.project.ai.processing;
+package com.project.ai.processing.text.english;
 
 import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.SearchIntent;
+import com.project.ai.processing.ChatProcessor;
+import com.project.ai.processing.text.structure.FilterProcessor;
+import com.project.ai.processing.text.structure.MatchedIdsResolver;
 import com.project.ai.service.SearchService;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,9 +26,8 @@ import java.util.Set;
  * @Time: 9:26 PM
  */
 @Service
-@RequiredArgsConstructor
 @Log4j2
-public class SegmentProcessor implements ChatProcessor {
+public class EnglishSegmentProcessor implements ChatProcessor {
 
     private static final Set<String> SUPPORTED = Set.of(
             "semantic", "price", "category", "brand", "hybrid", "comparison");
@@ -33,9 +35,26 @@ public class SegmentProcessor implements ChatProcessor {
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final ChatModel chatModel;
     private final FilterProcessor filterProcessor;
-    private final SuggestionProcessor suggestionProcessor;
+    private final EnglishSuggestionProcessor englishSuggestionProcessor;
     private final MatchedIdsResolver matchedIdsResolver;
     private final SearchService searchService;
+
+    public EnglishSegmentProcessor(
+            final EmbeddingStore<TextSegment> embeddingStore,
+            @Qualifier("englishChatModel") final ChatModel chatModel,
+            final FilterProcessor filterProcessor,
+            final EnglishSuggestionProcessor englishSuggestionProcessor,
+            final MatchedIdsResolver matchedIdsResolver,
+            final SearchService searchService
+    ) {
+
+        this.embeddingStore = embeddingStore;
+        this.chatModel = chatModel;
+        this.filterProcessor = filterProcessor;
+        this.englishSuggestionProcessor = englishSuggestionProcessor;
+        this.matchedIdsResolver = matchedIdsResolver;
+        this.searchService = searchService;
+    }
 
     @Override
     public boolean supports(String searchType) {
@@ -45,41 +64,41 @@ public class SegmentProcessor implements ChatProcessor {
     @Override
     public ProcessingResult process(ProcessingRequest request) {
 
-        log.info("[SegmentProcessor] START — type={}", request.getSearchIntent().getSearchType());
+        log.info("[EnglishSegmentProcessor] START — type={}", request.getSearchIntent().getSearchType());
         SearchIntent intent = request.getSearchIntent();
 
-        log.info("[SegmentProcessor] Building search request — semantic='{}'",
+        log.info("[EnglishSegmentProcessor] Building search request — semantic='{}'",
                 intent.getSemanticQuery());
 
         EmbeddingSearchRequest searchRequest = searchService.buildSearchRequest(intent);
 
         List<EmbeddingMatch<TextSegment>> matches = embeddingStore.search(searchRequest).matches();
-        log.info("[SegmentProcessor] Vector search returned {} matches", matches.size());
+        log.info("[EnglishSegmentProcessor] Vector search returned {} matches", matches.size());
 
 
         FilteredContext filteredContext = filterProcessor.filter(matches, intent);
-        log.info("[SegmentProcessor] After filtering: {} products", filteredContext.getFilteredMatches().size());
-        log.debug("[SegmentProcessor] Filtered products:\n{}", filteredContext.getContext());
+        log.info("[EnglishSegmentProcessor] After filtering: {} products", filteredContext.getFilteredMatches().size());
+        log.debug("[EnglishSegmentProcessor] Filtered products:\n{}", filteredContext.getContext());
 
         if (filteredContext.getFilteredMatches().isEmpty()) {
-            log.info("[SegmentProcessor] No products after filtering — delegating to SuggestionProcessor");
+            log.info("[EnglishSegmentProcessor] No products after filtering — delegating to SuggestionProcessor");
             request.setVectorMatches(matches);
-            return suggestionProcessor.process(request);
+            return englishSuggestionProcessor.process(request);
         }
 
         String prompt = buildPrompt(intent, filteredContext,
                 request.getRawQuestion(), request.getMemoryContext());
 
-        log.debug("[SegmentProcessor] Prompt sent to LLM:\n{}", prompt);
+        log.debug("[EnglishSegmentProcessor] Prompt sent to LLM:\n{}", prompt);
 
         String answer = chatModel.chat(prompt);
-        log.debug("[SegmentProcessor] LLM answer:\n{}", answer);
+        log.debug("[EnglishSegmentProcessor] LLM answer:\n{}", answer);
 
         matchedIdsResolver.resolve(answer, filteredContext, intent);
 
         // 5. Extract matched IDs
         List<String> matchedIds = matchedIdsResolver.resolve(answer, filteredContext, intent);
-        log.info("[SegmentProcessor] END — matchedIds={}", matchedIds);
+        log.info("[EnglishSegmentProcessor] END — matchedIds={}", matchedIds);
 
         return ProcessingResult.builder()
                 .enrichedQuestion(intent.getSemanticQuery())
@@ -230,14 +249,5 @@ public class SegmentProcessor implements ChatProcessor {
                     Answer:
                     """.formatted(context, memorySection, userQuestion);
         };
-    }
-
-    private ProcessingResult emptyResult(ProcessingRequest request) {
-        return ProcessingResult.builder()
-                .enrichedQuestion(request.getSearchIntent().getSemanticQuery())
-                .type(request.getSearchIntent().getSearchType())
-                .answer("Sorry, I couldn't find any products matching your request.")
-                .matchedIds(List.of())
-                .build();
     }
 }

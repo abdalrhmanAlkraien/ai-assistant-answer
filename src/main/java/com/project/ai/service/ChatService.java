@@ -1,15 +1,13 @@
 package com.project.ai.service;
 
+import com.project.ai.agents.MultiAgentCoordinator;
 import com.project.ai.dto.ChatRequest;
-import com.project.ai.dto.ChatResponse;
-import com.project.ai.dto.ProcessingRequest;
-import com.project.ai.dto.ProcessingResult;
-import com.project.ai.processing.ProcessingOrchestrator;
+import com.project.ai.dto.MultimodalRequest;
+import com.project.ai.dto.MultimodalResponse;
+import com.project.ai.processing.text.InputProcessor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
 
 /**
  * @author: Abd-alrhman Alkraien.
@@ -21,25 +19,15 @@ import java.time.LocalDateTime;
 @Log4j2
 public class ChatService {
 
-    private final ProcessingOrchestrator orchestrator;
+    private final MultiAgentCoordinator multiAgentCoordinator;
+    private final InputProcessor inputProcessor;
 
-    public ChatResponse chat(final Long userId, final ChatRequest chatRequest) {
+    public MultimodalResponse chat(final Long userId, final ChatRequest chatRequest) {
 
         log.info("[ChatService] START — userId ={}, question={}", userId, chatRequest.getQuestion());
 
-        ProcessingRequest request = ProcessingRequest.builder()
-                .userId(userId)
-                .rawQuestion(chatRequest.getQuestion())
-                .build();
+        MultimodalRequest multimodalRequest = inputProcessor.process(userId, chatRequest);
 
-        ProcessingResult result = orchestrator.process(request);
-
-        return ChatResponse.builder()
-                .question(result.getEnrichedQuestion())
-                .type(result.getType())
-                .answer(result.getAnswer())
-                .matchProducts(result.getMatchedIds())
-                .responseTime(LocalDateTime.now())
-                .build();
+        return multiAgentCoordinator.process(multimodalRequest);
     }
 }

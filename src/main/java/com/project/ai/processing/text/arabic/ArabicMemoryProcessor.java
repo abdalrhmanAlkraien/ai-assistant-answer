@@ -1,24 +1,36 @@
-package com.project.ai.processing;
+package com.project.ai.processing.text.arabic;
 
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
+import com.project.ai.processing.ChatProcessor;
+import com.project.ai.processing.text.structure.IntentAnalyzer;
+import com.project.ai.processing.text.structure.MemoryContext;
 import com.project.ai.service.MemoryService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
 /**
  * @author: Abd-alrhman Alkraien.
- * @Date: 12/05/2026
- * @Time: 9:13 PM
+ * @Date: 16/05/2026
+ * @Time: 11:11 PM
  */
 @Service
-@RequiredArgsConstructor
 @Log4j2
-public class MemoryProcessor implements ChatProcessor {
+public class ArabicMemoryProcessor implements ChatProcessor, MemoryContext {
 
     private final MemoryService memoryService;
-    private final IntentAnalyzer intentAnalyzer;
+    private final IntentAnalyzer arabicIntentAnalyzer;
+
+    public ArabicMemoryProcessor(final MemoryService memoryService, final ArabicIntentAnalyzer arabicIntentAnalyzer) {
+
+        this.memoryService = memoryService;
+        this.arabicIntentAnalyzer = arabicIntentAnalyzer;
+    }
+
+    @Override
+    public ProcessingResult process(ProcessingRequest request) {
+        throw new UnsupportedOperationException("EnglishMemoryProcessor is used as pre/post step only");
+    }
 
     @Override
     public boolean supports(String searchType) {
@@ -26,32 +38,29 @@ public class MemoryProcessor implements ChatProcessor {
     }
 
     @Override
-    public ProcessingResult process(ProcessingRequest request) {
-        throw new UnsupportedOperationException("MemoryProcessor is used as pre/post step only");
-    }
-
     public void prepareContext(ProcessingRequest request) {
-        log.info("[MemoryProcessor] prepareContext START — userId={}", request.getUserId());
+
+        log.info("[ArabicMemoryProcessor] prepareContext START — userId={}", request.getUserId());
 
         String memoryContext = memoryService.memoryContext(
                 request.getUserId(), request.getRawQuestion());
 
-        log.debug("[MemoryProcessor] Memory context loaded:\n{}", memoryContext);
+        log.debug("[ArabicMemoryProcessor] Memory context:\n{}", memoryContext);
 
-        String enriched = intentAnalyzer.enrichWithMemory(
+        String enriched = arabicIntentAnalyzer.enrichWithMemory(
                 request.getRawQuestion(), memoryContext);
+
+        log.info("[ArabicMemoryProcessor] enriched: '{}' → '{}'",
+                request.getRawQuestion(), enriched);
 
         request.setMemoryContext(memoryContext);
         request.setEnrichedQuestion(enriched);
-
-        log.info("[MemoryProcessor] Question enriched — from='{}' to='{}'",
-                request.getRawQuestion(), enriched);
     }
 
+    @Override
+    public void saveToMemory(final ProcessingRequest request, ProcessingResult result) {
 
-    public void saveToMemory(ProcessingRequest request, ProcessingResult result) {
-
-        log.info("[MemoryProcessor] saveToMemory START — userId={}, type={}",
+        log.info("[ArabicMemoryProcessor] saveToMemory START — userId={}, type={}",
                 request.getUserId(), result.getType());
 
         String[] matchedProducts = result.getMatchedIds().toArray(String[]::new);
@@ -63,8 +72,7 @@ public class MemoryProcessor implements ChatProcessor {
                 .trim();
 
 
-
-        log.debug("[MemoryProcessor] Saving USER message='{}'", request.getUserId());
+        log.debug("[ArabicMemoryProcessor] Saving USER message='{}'", request.getUserId());
 
         memoryService.saveMemory(
                 request.getUserId(),
@@ -73,7 +81,7 @@ public class MemoryProcessor implements ChatProcessor {
                 request.getSearchIntent().getSemanticQuery(),
                 matchedProducts);
 
-        log.debug("[MemoryProcessor] Saving AI answer='{}'", result.getAnswer());
+        log.debug("[ArabicMemoryProcessor] Saving AI answer='{}'", result.getAnswer());
 
         memoryService.saveMemory(
                 request.getUserId(),
@@ -84,6 +92,6 @@ public class MemoryProcessor implements ChatProcessor {
 
         log.debug("[MemoryProcessor] Saving matchedProducts={}", result.getMatchedIds());
 
-        log.info("[MemoryProcessor] saveToMemory END");
+        log.info("[ArabicMemoryProcessor] saveToMemory END");
     }
 }

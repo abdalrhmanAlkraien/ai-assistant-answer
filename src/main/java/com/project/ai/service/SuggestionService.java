@@ -1,15 +1,11 @@
 package com.project.ai.service;
 
+import com.project.ai.agents.Language;
 import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.SearchIntent;
-import dev.langchain4j.data.segment.TextSegment;
-import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.store.embedding.EmbeddingMatch;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -18,15 +14,10 @@ import java.util.stream.Collectors;
  * @Time: 12:55 AM
  */
 @Service
-@RequiredArgsConstructor
 @Log4j2
 public class SuggestionService {
 
-    //    private final EmbeddingStore<TextSegment> embeddingStore;
-//    private final EmbeddingModel embeddingModel;
-    private final ChatModel chatModel;
-
-    public String suggestionProduct(final String question, final FilteredContext suggestContext) {
+    public String suggestionProduct(final String question, final FilteredContext suggestContext, final Language language) {
 
         log.info("suggest product enable");
 
@@ -35,26 +26,54 @@ public class SuggestionService {
                         + m.embedded().text())
                 .collect(Collectors.joining("\n"));
 
+        String suggestQuestion = "";
+        if (language.equals(Language.ENGLISH)) {
+            suggestQuestion = """
+                    You are a helpful e-commerce assistant.
+                    The user was looking for: "%s"
+                    But no exact matches were found in our catalog.
+                    
+                    STRICT RULES:
+                    - ONLY mention products from the list below — nothing else
+                    - NEVER invent products not in this list
+                    - Format response in a friendly helpful way
+                    - Explain why this is a good alternative
+                    - At the end list: "Product IDs: ..."
+                    
+                    Available alternatives:
+                    %s
+                    
+                    Write a friendly suggestion explaining why these products are good alternatives:
+                    """.formatted(question, productsContext);
+        } else {
 
-        String suggestQuestion =  """
-        You are a helpful e-commerce assistant.
-        The user was looking for: "%s"
-        But no exact matches were found in our catalog.
-        
-        STRICT RULES:
-        - ONLY mention products from the list below — nothing else
-        - NEVER invent products not in this list
-        - Format response in a friendly helpful way
-        - Explain why this is a good alternative
-        - At the end list: "Product IDs: ..."
-        
-        Available alternatives:
-        %s
-        
-        Write a friendly suggestion explaining why these products are good alternatives:
-        """.formatted(question, productsContext);
+            suggestQuestion = """
+                    أنت مساعد تسوق إلكتروني مفيد.
+                    كان المستخدم يبحث عن: "%s"
+                    لكن لم يتم العثور على تطابق دقيق في كتالوجنا.
+                    
+                    القواعد الصارمة:
+                    - اذكر فقط المنتجات من القائمة أدناه — لا شيء غيرها
+                    - لا تخترع منتجات غير موجودة في هذه القائمة أبداً
+                    - اقترح فقط المنتجات ذات الصلة بما طلبه المستخدم
+                    - فضّل المنتجات الأقرب لنطاق سعر المستخدم الأصلي
+                    - إذا كان المنتج غير ذي صلة أو بعيداً جداً عن الميزانية، لا تذكره
+                    - نسّق الرد بطريقة ودية ومفيدة
+                    - اشرح لماذا هذا المنتج بديل جيد
+                    - في النهاية اذكر: "معرفات المنتجات: ..."
+                    
+                    البدائل المتاحة:
+                    %s
+                    
+                    اكتب اقتراحاً ودياً باللغة العربية يشرح لماذا هذه المنتجات بدائل جيدة:
+                    
+                    
+                   تذكر: الإجابة باللغة العربية فقط.
+                    
+                    """.formatted(question, productsContext);
+        }
 
-        return chatModel.chat(suggestQuestion);
+        return suggestQuestion;
     }
 
     public SearchIntent buildSuggestIntent(SearchIntent original) {
