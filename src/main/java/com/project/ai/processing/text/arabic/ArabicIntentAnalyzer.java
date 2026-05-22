@@ -45,7 +45,8 @@ public class ArabicIntentAnalyzer implements IntentAnalyzer {
                   "maxPrice": null or number,
                   "category": null or string in English,
                   "brand": null or string,
-                  "semanticQuery": "the cleaned search query in English",
+                  "semanticQuery": "the cleaned search query in English — for vector search only",
+                  "semanticQueryArabic": ""the cleaned search query in Arabic — for response only",
                   "sortDirection": null or "asc" or "desc"
                 }
                 
@@ -66,9 +67,36 @@ public class ArabicIntentAnalyzer implements IntentAnalyzer {
                                  استخرج الفئة والعلامة التجارية من استعلام الترتيب إذا وُجدا
                                  "رتب اللابتوبات تصاعدياً" → category: "laptops", sortDirection: "asc"
                                  "رتب هواتف سامسونج تنازلياً" → brand: "Samsung", sortDirection: "desc"
+                                         ╔══════════════════════════════════════════════════════════════╗
+                                         ║  قواعد اللغة — إلزامية بدون استثناء                        ║
+                                         ║  "category"          → إنجليزية فقط                        ║
+                                         ║  "semanticQuery"     → إنجليزية فقط  (vector search)       ║
+                                         ║  "semanticQueryArabic" → عربية فصحى فقط  (LLM prompt)     ║
+                                         ║  "brand"             → كما هي (Samsung, Apple ...)         ║
+                                         ╚══════════════════════════════════════════════════════════════╝
                 
+                        جدول ترجمة الفئات — استخدم هذه القيم حرفياً في حقل category:
+                        لابتوب / لاب توب / حاسوب محمول  → "laptops"
+                        لابتوب ألعاب / جيمينج لابتوب   → "gaming laptops"
+                        جوال / هاتف / موبايل / تليفون   → "smartphones"
+                        سماعات رأس                     → "headphones"
+                        سماعات أذن / إيربودز            → "earbuds"
+                        مكبر صوت / سبيكر               → "speakers"
+                        تلفزيون / شاشة تلفاز            → "tvs"
+                        ألعاب فيديو / كونسول            → "gaming"
+                        ساعة ذكية                      → "wearables"
+                        كاميرا                         → "cameras"
+                        إكسسوارات                      → "accessories"
+                        منزل ذكي                       → "smart home"
+                        تخزين                          → "storage"
+                        شاشة كمبيوتر / مونيتور         → "monitors"
+                        مطبخ                           → "kitchen"
+                        أجهزة منزلية                   → "appliances"
+                        أحذية                          → "shoes"
+                        ملابس                          → "clothing"
                 مهم جداً:
-                - أعد category و semanticQuery دائماً باللغة الإنجليزية بغض النظر عن لغة السؤال
+                
+                - أعد category و semanticQuery دائماً باللغة العربية بغض النظر عن لغة السؤال
                 - ترجمة الفئات: لابتوب/حاسوب محمول = laptop، جوال/هاتف/موبايل = smartphone،
                   سماعات = headphones، ساعة ذكية = smartwatch، تلفزيون = TV
                 - ترجمة الأسعار: أقل من = under/less than، أكثر من = more than، بين = between
@@ -253,7 +281,7 @@ public class ArabicIntentAnalyzer implements IntentAnalyzer {
                 صحيح: "which Samsung smartphone is cheaper?"  ✅
                 خطأ:  "best smartphone under $1000"  ❌
                 
-                أعد فقط السؤال المُعاد صياغته باللغة الإنجليزية، لا شيء آخر.
+                أعد فقط السؤال المُعاد صياغته باللغة العربية، لا شيء آخر.
                 """.formatted(memoryContext, question);
 
         try {

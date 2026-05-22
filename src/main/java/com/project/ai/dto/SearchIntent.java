@@ -1,5 +1,6 @@
 package com.project.ai.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,6 +15,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 @NoArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)  // ← ADD THIS
 public class SearchIntent {
 
     private String searchType;
@@ -25,4 +27,6 @@ public class SearchIntent {
 
     @Builder.Default
     private String semanticQuery = "";
+    private String semanticQueryArabic;      // ← ADD THIS
+
 }

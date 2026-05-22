@@ -4,6 +4,7 @@ import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.SearchIntent;
 import com.project.ai.processing.ChatProcessor;
+import com.project.ai.processing.normalizer.CategoryNormalizer;
 import com.project.ai.processing.text.structure.IntentAnalyzer;
 import com.project.ai.processing.text.structure.ProcessingOrchestrator;
 import lombok.extern.log4j.Log4j2;
@@ -26,6 +27,7 @@ public class ArabicProcessingOrchestrator implements ProcessingOrchestrator {
     private final ChatProcessor segmentProcessor;
     private final ChatProcessor sortProcessor;
     private final ChatProcessor suggestionProcessor;
+    private final CategoryNormalizer categoryNormalizer;
 
     public ArabicProcessingOrchestrator(
             final ArabicMemoryProcessor memoryProcessor,
@@ -33,7 +35,8 @@ public class ArabicProcessingOrchestrator implements ProcessingOrchestrator {
             final ArabicKnowledgeProcessor knowledgeProcessor,
             final ArabicSegmentProcessor segmentProcessor,
             final ArabicSortProcessor sortProcessor,
-            final ArabicSuggestionProcessor suggestionProcessor
+            final ArabicSuggestionProcessor suggestionProcessor,
+            final CategoryNormalizer categoryNormalizer
     ) {
         this.memoryProcessor = memoryProcessor;
         this.intentAnalyzer = intentAnalyzer;
@@ -41,6 +44,7 @@ public class ArabicProcessingOrchestrator implements ProcessingOrchestrator {
         this.segmentProcessor = segmentProcessor;
         this.sortProcessor = sortProcessor;
         this.suggestionProcessor = suggestionProcessor;
+        this.categoryNormalizer = categoryNormalizer;
     }
 
     @Override
@@ -53,11 +57,19 @@ public class ArabicProcessingOrchestrator implements ProcessingOrchestrator {
 
         SearchIntent intent = intentAnalyzer.extractIntent(request.getEnrichedQuestion());
 
+        // Normalize category before any filtering
+        if (intent.getCategory() != null) {
+            String normalized = categoryNormalizer.normalize(intent.getCategory());
+            intent.setCategory(normalized);
+            log.info("[Orchestrator] Category normalized: '{}' → '{}'",
+                    intent.getCategory(), normalized);
+        }
+
         log.info("[ArabicProcessingOrchestrator] Parsed intent — type={}, category={}, brand={}, " +
-                        "minPrice={}, maxPrice={}, sortDirection={}, semantic='{}'",
+                        "minPrice={}, maxPrice={}, sortDirection={}, semantic='{}', arabicSemantic = {}",
                 intent.getSearchType(), intent.getCategory(), intent.getBrand(),
                 intent.getMinPrice(), intent.getMaxPrice(),
-                intent.getSortDirection(), intent.getSemanticQuery());
+                intent.getSortDirection(), intent.getSemanticQuery(), intent.getSemanticQueryArabic());
 
         if (intent.getSemanticQuery() == null || intent.getSemanticQuery().isBlank()) {
             intent.setSemanticQuery(request.getEnrichedQuestion());
