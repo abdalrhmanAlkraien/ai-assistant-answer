@@ -43,6 +43,7 @@ public class EnglishTextAgent implements MultimodalAgentStrategy {
         ProcessingRequest processingRequest = ProcessingRequest.builder()
                 .userId(request.getUserId())
                 .rawQuestion(request.getTextQuestion())
+                .tokenTracker(request.getTokenTracker())
                 .build();
 
         ProcessingResult result = orchestrator.process(processingRequest);

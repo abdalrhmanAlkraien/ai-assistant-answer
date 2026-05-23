@@ -5,13 +5,16 @@ import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.SearchIntent;
+import com.project.ai.dto.TokenTracker;
 import com.project.ai.processing.ChatProcessor;
 import com.project.ai.processing.text.structure.FilterProcessor;
 import com.project.ai.processing.text.structure.MatchedIdsResolver;
 import com.project.ai.service.SearchService;
 import com.project.ai.service.SuggestionService;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
@@ -135,18 +138,32 @@ public class EnglishSuggestionProcessor implements ChatProcessor {
 
 
         String question = suggestionService.suggestionProduct(enrichedQuestion, cappedContext, Language.ARABIC);
-        String answer = chatModel.chat(question);
 
-        log.debug("[EnglishSuggestionProcessor] Suggestion answer:\n{}", answer);
+        TokenTracker tracker = request.getTokenTracker();
 
-        List<String> matchedIds = matchedIdsResolver.resolve(answer, cappedContext, originalIntent);
+        long intentStart = System.currentTimeMillis();
+
+        ChatResponse answer = chatModel.chat(UserMessage.from(question));
+
+        long intentDuration = System.currentTimeMillis() - intentStart;
+
+        tracker.record(
+                "english-suggestion-processor",
+                answer.tokenUsage().inputTokenCount(),
+                answer.tokenUsage().outputTokenCount(),
+                intentDuration
+        );
+
+        log.debug("[EnglishSuggestionProcessor] Suggestion answer:\n{}", answer.aiMessage().text());
+
+        List<String> matchedIds = matchedIdsResolver.resolve(answer.aiMessage().text(), cappedContext, originalIntent);
 
         log.info("[EnglishSuggestionProcessor] END — matchedIds={}", matchedIds);
 
         return ProcessingResult.builder()
                 .enrichedQuestion(originalIntent.getSemanticQuery())
                 .type("suggest")
-                .answer(answer)
+                .answer(answer.aiMessage().text())
                 .matchedIds(matchedIds)
                 .build();
 

@@ -42,6 +42,7 @@ public class ArabicTextAgent implements MultimodalAgentStrategy {
         ProcessingRequest processingRequest = ProcessingRequest.builder()
                 .userId(request.getUserId())
                 .rawQuestion(request.getNormalizedText())
+                .tokenTracker(request.getTokenTracker())
                 .build();
 
         ProcessingResult result = orchestrator.process(processingRequest);

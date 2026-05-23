@@ -2,9 +2,11 @@ package com.project.ai.processing.text.english;
 
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
+import com.project.ai.dto.TokenTracker;
 import com.project.ai.processing.ChatProcessor;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
-import lombok.RequiredArgsConstructor;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -33,24 +35,39 @@ public class EnglishKnowledgeProcessor implements ChatProcessor {
 
     @Override
     public ProcessingResult process(ProcessingRequest request) {
-        log.info("[KnowledgeProcessor] START — question='{}'", request.getRawQuestion());
+        log.info("[EnglishKnowledgeProcessor] START — question='{}'", request.getRawQuestion());
 
-        String answer = chatModel.chat("""
+        TokenTracker tracker = request.getTokenTracker();
+
+        long intentStart = System.currentTimeMillis();
+
+        String question = """
                 You are a helpful assistant.
                 Answer this question based on your knowledge.
                 Be concise and helpful.
                 
                 Question: %s
-                """.formatted(request.getRawQuestion()));
+                """.formatted(request.getRawQuestion());
 
-        log.debug("[KnowledgeProcessor] LLM answer:\n{}", answer);
+        ChatResponse answer = chatModel.chat(UserMessage.from(question));
 
-        log.info("[KnowledgeProcessor] END");
+        long intentDuration = System.currentTimeMillis() - intentStart;
+
+        tracker.record(
+                "english-knowledge-processor",
+                answer.tokenUsage().inputTokenCount(),
+                answer.tokenUsage().outputTokenCount(),
+                intentDuration
+        );
+
+        log.debug("[EnglishKnowledgeProcessor] LLM answer:\n{}", answer);
+
+        log.info("[EnglishKnowledgeProcessor] END");
 
         return ProcessingResult.builder()
                 .enrichedQuestion(request.getEnrichedQuestion())
                 .type("knowledge")
-                .answer(answer)
+                .answer(answer.aiMessage().text().trim())
                 .matchedIds(List.of())
                 .build();
     }

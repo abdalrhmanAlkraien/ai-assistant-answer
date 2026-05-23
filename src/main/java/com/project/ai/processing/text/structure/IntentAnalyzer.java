@@ -1,5 +1,6 @@
 package com.project.ai.processing.text.structure;
 
+import com.project.ai.dto.AiResult;
 import com.project.ai.dto.SearchIntent;
 
 /**
@@ -8,6 +9,6 @@ import com.project.ai.dto.SearchIntent;
  * @Time: 10:24 PM
  */
 public interface IntentAnalyzer {
-    String enrichWithMemory(String question, String memoryContext);
-    SearchIntent extractIntent(String userQuestion);
+    AiResult<String> enrichWithMemory(String question, String memoryContext);
+    AiResult<SearchIntent> extractIntent(String userQuestion);
 }

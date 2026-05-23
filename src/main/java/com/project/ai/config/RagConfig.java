@@ -9,6 +9,7 @@ import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.huggingface.HuggingFaceEmbeddingModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.chroma.ChromaApiVersion;
 import dev.langchain4j.store.embedding.chroma.ChromaEmbeddingStore;
@@ -54,38 +55,76 @@ public class RagConfig {
 
     @Bean
     public ChatModel chatModel() {
-        log.info("Creating Ollama ChatModel --> {} | {}",
-                properties.getChatModel().getOllama().getBaseUrl(),
-                properties.getChatModel().getOllama().getModelName());
+        log.info("Creating NVIDIA ChatModel --> {} | {}",
+                properties.getChatModel().getNvidia().getBaseUrl(),
+                properties.getChatModel().getNvidia().getModelName());
 
-        return OllamaChatModel.builder()
-                .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
-                .modelName(properties.getChatModel().getOllama().getModelName())
-                .temperature(0.7)
+        return OpenAiChatModel.builder()
+                .baseUrl(properties.getChatModel().getNvidia().getBaseUrl())
+                .apiKey(properties.getChatModel().getNvidia().getApiKey())
+                .modelName(properties.getChatModel().getNvidia().getModelName())
+                .temperature(properties.getChatModel().getNvidia().getTemperature())
                 .timeout(Duration.ofMinutes(2))
                 .build();
     }
 
     @Bean("englishChatModel")
     @Primary
-    public ChatModel englishChatModel(LangChain4jProperties properties) {
-        return OllamaChatModel.builder()
-                .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
-                .modelName(properties.getChatModel().getOllama().getEnglishModelName())
-                .temperature(properties.getChatModel().getOllama().getTemperature())
+    public ChatModel englishChatModel() {
+        return OpenAiChatModel.builder()
+                .baseUrl(properties.getChatModel().getNvidia().getBaseUrl())
+                .apiKey(properties.getChatModel().getNvidia().getApiKey())
+                .modelName(properties.getChatModel().getNvidia().getEnglishModelName())
+                .temperature(properties.getChatModel().getNvidia().getTemperature())
                 .timeout(Duration.ofMinutes(2))
                 .build();
     }
 
     @Bean("arabicChatModel")
-    public ChatModel arabicChatModel(LangChain4jProperties properties) {
-        return OllamaChatModel.builder()
-                .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
-                .modelName(properties.getChatModel().getOllama().getArabicModelName())
-                .temperature(properties.getChatModel().getOllama().getTemperature())
+    public ChatModel arabicChatModel() {
+        return OpenAiChatModel.builder()
+                .baseUrl(properties.getChatModel().getNvidia().getBaseUrl())
+                .apiKey(properties.getChatModel().getNvidia().getApiKey())
+                .modelName(properties.getChatModel().getNvidia().getArabicModelName())
+                .temperature(properties.getChatModel().getNvidia().getTemperature())
                 .timeout(Duration.ofMinutes(2))
                 .build();
     }
+
+//    @Bean
+//    public ChatModel chatModel() {
+//        log.info("Creating Ollama ChatModel --> {} | {}",
+//                properties.getChatModel().getOllama().getBaseUrl(),
+//                properties.getChatModel().getOllama().getModelName());
+//
+//        return OllamaChatModel.builder()
+//                .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
+//                .modelName(properties.getChatModel().getOllama().getModelName())
+//                .temperature(0.7)
+//                .timeout(Duration.ofMinutes(2))
+//                .build();
+//    }
+//
+//    @Bean("englishChatModel")
+//    @Primary
+//    public ChatModel englishChatModel(LangChain4jProperties properties) {
+//        return OllamaChatModel.builder()
+//                .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
+//                .modelName(properties.getChatModel().getOllama().getEnglishModelName())
+//                .temperature(properties.getChatModel().getOllama().getTemperature())
+//                .timeout(Duration.ofMinutes(2))
+//                .build();
+//    }
+//
+//    @Bean("arabicChatModel")
+//    public ChatModel arabicChatModel(LangChain4jProperties properties) {
+//        return OllamaChatModel.builder()
+//                .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
+//                .modelName(properties.getChatModel().getOllama().getArabicModelName())
+//                .temperature(properties.getChatModel().getOllama().getTemperature())
+//                .timeout(Duration.ofMinutes(2))
+//                .build();
+//    }
 
     @Bean
     public ApacheTikaDocumentParser tikaParser() {

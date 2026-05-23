@@ -2,8 +2,11 @@ package com.project.ai.processing.text.arabic;
 
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
+import com.project.ai.dto.TokenTracker;
 import com.project.ai.processing.ChatProcessor;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -37,7 +40,11 @@ public class ArabicKnowledgeProcessor implements ChatProcessor {
     public ProcessingResult process(ProcessingRequest request) {
         log.info("[ArabicKnowledgeProcessor] START");
 
-        String answer = chatModel.chat("""
+        TokenTracker tracker = request.getTokenTracker();
+
+        long intentStart = System.currentTimeMillis();
+
+        String question = """
                 أنت مساعد مفيد لمنصة تجارة إلكترونية.
                 أجب على هذا السؤال بناءً على معرفتك.
                 كن مختصراً ومفيداً.
@@ -47,14 +54,25 @@ public class ArabicKnowledgeProcessor implements ChatProcessor {
                 
                تذكر: الإجابة باللغة العربية فقط.
                 
-                """.formatted(request.getRawQuestion()));
+                """.formatted(request.getRawQuestion());
+
+        ChatResponse answer = chatModel.chat(UserMessage.from(question));
+
+        long intentDuration = System.currentTimeMillis() - intentStart;
+
+        tracker.record(
+                "arabic-knowledge-processor",
+                answer.tokenUsage().inputTokenCount(),
+                answer.tokenUsage().outputTokenCount(),
+                intentDuration
+        );
 
         log.info("[ArabicKnowledgeProcessor] END");
 
         return ProcessingResult.builder()
                 .enrichedQuestion(request.getEnrichedQuestion())
                 .type("knowledge")
-                .answer(answer)
+                .answer(answer.aiMessage().text())
                 .matchedIds(List.of())
                 .build();
     }

@@ -3,8 +3,6 @@ package com.project.ai.config;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
@@ -64,6 +62,18 @@ public class LangChain4jProperties {
     @Data
     public static class ChatModel {
         private Ollama ollama;
+        private NvidiaProperties nvidia;
+
+        @Data
+        public static class NvidiaProperties {
+            private String baseUrl;
+            private String apiKey;
+            private String modelName;
+            private String englishModelName;
+            private String arabicModelName;
+            private double temperature;
+            private String timeout;
+        }
 
         @Data
         public static class Ollama {

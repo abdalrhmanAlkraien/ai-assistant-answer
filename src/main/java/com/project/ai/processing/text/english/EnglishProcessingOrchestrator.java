@@ -1,5 +1,6 @@
 package com.project.ai.processing.text.english;
 
+import com.project.ai.dto.AiResult;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.SearchIntent;
@@ -33,7 +34,9 @@ public class EnglishProcessingOrchestrator implements ProcessingOrchestrator {
 
         englishMemoryProcessor.prepareContext(request);
 
-        SearchIntent intent = englishIntentAnalyzer.extractIntent(request.getEnrichedQuestion());
+        AiResult<SearchIntent> responseResult = englishIntentAnalyzer.extractIntent(request.getEnrichedQuestion());
+
+        SearchIntent intent = responseResult.result();
 
         log.info("[Orchestrator] Parsed intent — type={}, category={}, brand={}, " +
                         "minPrice={}, maxPrice={}, sortDirection={}, semantic='{}'",

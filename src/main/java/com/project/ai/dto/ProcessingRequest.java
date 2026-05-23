@@ -31,20 +31,5 @@ public class ProcessingRequest {
     // populated by SegmentProcessor
     private List<EmbeddingMatch<TextSegment>> vectorMatches;
     private List<EmbeddingMatch<TextSegment>> lastFilteredMatches;
-
-//    public void setMemoryContext(String memoryContext) {
-//        this.memoryContext = memoryContext;
-//    }
-//
-//    public void setEnrichedQuestion(String enrichedQuestion) {
-//        this.enrichedQuestion = enrichedQuestion;
-//    }
-//
-//    public void setSearchIntent(SearchIntent searchIntent) {
-//        this.searchIntent = searchIntent;
-//    }
-//
-//    public void setVectorMatches(List<EmbeddingMatch<TextSegment>> vectorMatches) {
-//        this.vectorMatches = vectorMatches;
-//    }
+    private TokenTracker tokenTracker;
 }

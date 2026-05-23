@@ -2,10 +2,13 @@ package com.project.ai.processing.text.english;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project.ai.dto.AiResult;
 import com.project.ai.dto.SearchIntent;
 import com.project.ai.processing.text.structure.IntentAnalyzer;
+import com.project.ai.util.TokenUtil;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
-import lombok.RequiredArgsConstructor;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -31,14 +34,14 @@ public class EnglishIntentAnalyzer implements IntentAnalyzer {
     }
 
     @Override
-    public String enrichWithMemory(String question, String memoryContext) {
+    public AiResult<String> enrichWithMemory(String question, String memoryContext) {
 
         log.info("[EnglishIntentAnalyzer] enrichWithMemory — question='{}'", question);
         log.debug("[EnglishIntentAnalyzer] Memory context for enrichment:\n{}", memoryContext);
 
         if (memoryContext == null || memoryContext.isBlank()) {
             log.info("[EnglishIntentAnalyzer] - Memory context is blank");
-            return question;
+            return TokenUtil.buildCustomResult(0,0, question);
         }
 
         String prompt = """
@@ -151,17 +154,19 @@ public class EnglishIntentAnalyzer implements IntentAnalyzer {
                 """.formatted(memoryContext, question);
 
         try {
-            String enriched = chatModel.chat(prompt);
-            log.info("[EnglishIntentAnalyzer] Enrichment result='{}'", enriched);
-            return enriched.trim();
+//            String enriched = chatModel.chat(prompt);
+            ChatResponse answer = chatModel.chat(UserMessage.from(prompt));
+
+            log.info("[EnglishIntentAnalyzer] Enrichment result='{}'", answer.aiMessage().text());
+            return TokenUtil.buildCustomResult(answer.tokenUsage().inputTokenCount(), answer.tokenUsage().outputTokenCount(), answer.aiMessage().text().trim());
         } catch (Exception e) {
             log.warn("Failed to enrich question: {}", e.getMessage());
-            return question;
+            return TokenUtil.buildCustomResult(0, 0 ,question);
         }
     }
 
     @Override
-    public SearchIntent extractIntent(String userQuestion) {
+    public AiResult<SearchIntent> extractIntent(String userQuestion) {
 
 
         log.debug("[EnglishIntentAnalyzer] Raw intent JSON:\n{}", userQuestion);
@@ -234,25 +239,33 @@ public class EnglishIntentAnalyzer implements IntentAnalyzer {
                 User question: %s
                 """.formatted(priceInstruction, userQuestion);
 
-        String intentJson = chatModel.chat(intentPrompt);
-        log.debug("[EnglishIntentAnalyzer] Raw intent JSON:\n{}", intentJson);
+        ChatResponse response = chatModel.chat(
+                UserMessage.from(intentPrompt)
+        );
+
+        log.debug("[EnglishIntentAnalyzer] Raw intent JSON:\n{}", response.aiMessage().text());
 
         try {
             // clean markdown backticks if LLM adds them
-            String cleaned = intentJson
+            String cleaned = response.aiMessage().text()
                     .replaceAll("```json", "")
                     .replaceAll("```", "")
                     .trim();
 
-            return mapper.readValue(cleaned, SearchIntent.class);
+            SearchIntent searchIntent = mapper.readValue(cleaned, SearchIntent.class);
+
+            return TokenUtil.buildAiResult(response, searchIntent);
 
         } catch (JsonProcessingException e) {
             log.warn("[EnglishIntentAnalyzer] Failed to parse intent, falling back to pure semantic search: {}", e.getMessage());
             // fallback — treat as pure semantic search
-            return SearchIntent.builder()
+
+            SearchIntent searchIntent =  SearchIntent.builder()
                     .searchType("semantic")
                     .semanticQuery(userQuestion)
                     .build();
+
+            return TokenUtil.buildAiResult(response, searchIntent);
         }
     }
 }

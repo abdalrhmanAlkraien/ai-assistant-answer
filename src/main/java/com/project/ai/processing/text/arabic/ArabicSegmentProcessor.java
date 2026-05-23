@@ -4,12 +4,15 @@ import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.SearchIntent;
+import com.project.ai.dto.TokenTracker;
 import com.project.ai.processing.ChatProcessor;
 import com.project.ai.processing.text.structure.FilterProcessor;
 import com.project.ai.processing.text.structure.MatchedIdsResolver;
 import com.project.ai.service.SearchService;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
@@ -99,16 +102,30 @@ public class ArabicSegmentProcessor implements ChatProcessor {
 
         log.debug("[ArabicSegmentProcessor] Prompt sent to LLM:\n{}", prompt);
 
-        String answer = chatModel.chat(prompt);
-        log.debug("[ArabicSegmentProcessor] LLM answer:\n{}", answer);
+        TokenTracker tracker = request.getTokenTracker();
 
-        List<String> matchedIds = matchedIdsResolver.resolve(answer, filteredContext, intent);
+        long intentStart = System.currentTimeMillis();
+
+        ChatResponse answer = chatModel.chat(UserMessage.from(prompt));
+
+        long intentDuration = System.currentTimeMillis() - intentStart;
+
+        tracker.record(
+                "arabic-segment-processor",
+                answer.tokenUsage().inputTokenCount(),
+                answer.tokenUsage().outputTokenCount(),
+                intentDuration
+        );
+
+        log.debug("[ArabicSegmentProcessor] LLM answer:\n{}", answer.aiMessage().text());
+
+        List<String> matchedIds = matchedIdsResolver.resolve(answer.aiMessage().text(), filteredContext, intent);
         log.info("[ArabicSegmentProcessor] END — matchedIds={}", matchedIds);
 
         return ProcessingResult.builder()
                 .enrichedQuestion(intent.getSemanticQuery())
                 .type(intent.getSearchType())
-                .answer(answer)
+                .answer(answer.aiMessage().text())
                 .matchedIds(matchedIds)
                 .build();
     }

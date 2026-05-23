@@ -1,7 +1,9 @@
 package com.project.ai.processing.text.arabic;
 
+import com.project.ai.dto.AiResult;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
+import com.project.ai.dto.TokenTracker;
 import com.project.ai.processing.ChatProcessor;
 import com.project.ai.processing.text.structure.IntentAnalyzer;
 import com.project.ai.processing.text.structure.MemoryContext;
@@ -47,14 +49,27 @@ public class ArabicMemoryProcessor implements ChatProcessor, MemoryContext {
 
         log.debug("[ArabicMemoryProcessor] Memory context:\n{}", memoryContext);
 
-        String enriched = arabicIntentAnalyzer.enrichWithMemory(
+        TokenTracker tracker = request.getTokenTracker();
+
+        long intentStart = System.currentTimeMillis();
+
+        AiResult<String> answer = arabicIntentAnalyzer.enrichWithMemory(
                 request.getRawQuestion(), memoryContext);
 
+        long intentDuration = System.currentTimeMillis() - intentStart;
+
+        tracker.record(
+                "arabic-memory-processor",
+                answer.inputTokens(),
+                answer.outputTokens(),
+                intentDuration
+        );
+
         log.info("[ArabicMemoryProcessor] enriched: '{}' → '{}'",
-                request.getRawQuestion(), enriched);
+                request.getRawQuestion(), answer.result());
 
         request.setMemoryContext(memoryContext);
-        request.setEnrichedQuestion(enriched);
+        request.setEnrichedQuestion(answer.result().trim());
     }
 
     @Override

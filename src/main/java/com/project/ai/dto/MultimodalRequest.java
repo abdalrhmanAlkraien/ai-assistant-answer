@@ -25,4 +25,5 @@ public class MultimodalRequest {
     private Language detectedLanguage;    // set by LanguageDetector
     private String normalizedText;      // set by InputProcessor
     private InputType inputType;        // TEXT, VOICE, IMAGE, IMAGE_WITH_TEXT
+    private TokenTracker tokenTracker;
 }

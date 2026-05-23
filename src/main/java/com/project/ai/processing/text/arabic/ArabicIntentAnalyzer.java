@@ -2,9 +2,13 @@ package com.project.ai.processing.text.arabic;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project.ai.dto.AiResult;
 import com.project.ai.dto.SearchIntent;
 import com.project.ai.processing.text.structure.IntentAnalyzer;
+import com.project.ai.util.TokenUtil;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -30,7 +34,7 @@ public class ArabicIntentAnalyzer implements IntentAnalyzer {
     }
 
     @Override
-    public SearchIntent extractIntent(String userQuestion) {
+    public AiResult<SearchIntent> extractIntent(String userQuestion) {
 
         log.debug("[ArabicIntentAnalyzer] Raw intent JSON:\n{}", userQuestion);
 
@@ -128,25 +132,32 @@ public class ArabicIntentAnalyzer implements IntentAnalyzer {
                 سؤال المستخدم: %s
                 """.formatted(priceInstruction, userQuestion);
 
-        String intentJson = chatModel.chat(intentPrompt);
-        log.debug("[ArabicIntentAnalyzer] Raw intent JSON:\n{}", intentJson);
+        ChatResponse response = chatModel.chat(
+                UserMessage.from(intentPrompt)
+        );
+
+//        String intentJson = chatModel.chat(intentPrompt);
+        log.debug("[ArabicIntentAnalyzer] Raw intent JSON:\n{}", response.aiMessage().text());
 
         try {
             // clean markdown backticks if LLM adds them
-            String cleaned = intentJson
+            String cleaned = response.aiMessage().text()
                     .replaceAll("```json", "")
                     .replaceAll("```", "")
                     .trim();
 
-            return mapper.readValue(cleaned, SearchIntent.class);
+            SearchIntent searchIntent = mapper.readValue(cleaned, SearchIntent.class);
+
+            return TokenUtil.buildAiResult(response, searchIntent);
 
         } catch (JsonProcessingException e) {
             log.warn("[ArabicIntentAnalyzer] Failed to parse intent, falling back to pure semantic search: {}", e.getMessage());
             // fallback — treat as pure semantic search
-            return SearchIntent.builder()
+            SearchIntent searchIntent = SearchIntent.builder()
                     .searchType("semantic")
                     .semanticQuery(userQuestion)
                     .build();
+            return TokenUtil.buildAiResult(response, searchIntent);
         }
     }
 
@@ -165,14 +176,14 @@ public class ArabicIntentAnalyzer implements IntentAnalyzer {
     }
 
     @Override
-    public String enrichWithMemory(String question, String memoryContext) {
+    public AiResult<String> enrichWithMemory(String question, String memoryContext) {
 
         log.info("[ArabicIntentAnalyzer] enrichWithMemory — question='{}'", question);
         log.debug("[ArabicIntentAnalyzer] Memory context for enrichment:\n{}", memoryContext);
 
         if (memoryContext == null || memoryContext.isBlank()) {
             log.info("[ArabicIntentAnalyzer] - Memory context is blank");
-            return question;
+            return TokenUtil.buildCustomResult(0, 0, question);
         }
 
         String prompt = """
@@ -285,12 +296,17 @@ public class ArabicIntentAnalyzer implements IntentAnalyzer {
                 """.formatted(memoryContext, question);
 
         try {
-            String enriched = chatModel.chat(prompt);
-            log.info("[ArabicIntentAnalyzer] enriched: '{}'", enriched);
-            return enriched.trim();
+            ChatResponse answer = chatModel.chat(UserMessage.from(prompt));
+            log.info("[ArabicIntentAnalyzer] enriched: '{}'", answer.aiMessage().text());
+            return TokenUtil.buildCustomResult(
+                    answer.tokenUsage().inputTokenCount(),
+                    answer.tokenUsage().outputTokenCount(),
+                    answer.aiMessage().text().trim()
+            );
+
         } catch (Exception e) {
             log.warn("[ArabicIntentAnalyzer] enrichment failed: {}", e.getMessage());
-            return question;
+            return TokenUtil.buildCustomResult(0, 0, question);
         }
     }
 }

@@ -1,8 +1,10 @@
 package com.project.ai.processing.text.arabic;
 
+import com.project.ai.dto.AiResult;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.SearchIntent;
+import com.project.ai.dto.TokenTracker;
 import com.project.ai.processing.ChatProcessor;
 import com.project.ai.processing.normalizer.CategoryNormalizer;
 import com.project.ai.processing.text.structure.IntentAnalyzer;
@@ -53,10 +55,22 @@ public class ArabicProcessingOrchestrator implements ProcessingOrchestrator {
         log.info("[ArabicProcessingOrchestrator] START — userId={}, question='{}'",
                 request.getUserId(), request.getRawQuestion());
 
+        TokenTracker tracker = request.getTokenTracker();
+
         memoryProcessor.prepareContext(request);
 
-        SearchIntent intent = intentAnalyzer.extractIntent(request.getEnrichedQuestion());
+        long intentStart = System.currentTimeMillis();
+        AiResult<SearchIntent> responseResult = intentAnalyzer.extractIntent(request.getEnrichedQuestion());
+        long intentDuration = System.currentTimeMillis() - intentStart;
 
+        tracker.record(
+                "arabic-intent-analysis",
+                responseResult.inputTokens(),
+                responseResult.outputTokens(),
+                intentDuration
+        );
+
+        SearchIntent intent = responseResult.result();
         // Normalize category before any filtering
         if (intent.getCategory() != null) {
             String normalized = categoryNormalizer.normalize(intent.getCategory());

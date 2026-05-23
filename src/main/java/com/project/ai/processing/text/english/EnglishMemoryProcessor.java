@@ -1,7 +1,9 @@
 package com.project.ai.processing.text.english;
 
+import com.project.ai.dto.AiResult;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
+import com.project.ai.dto.TokenTracker;
 import com.project.ai.processing.ChatProcessor;
 import com.project.ai.processing.text.structure.MemoryContext;
 import com.project.ai.service.MemoryService;
@@ -41,14 +43,27 @@ public class EnglishMemoryProcessor implements ChatProcessor, MemoryContext {
 
         log.debug("[EnglishMemoryProcessor] Memory context loaded:\n{}", memoryContext);
 
-        String enriched = englishIntentAnalyzer.enrichWithMemory(
+        TokenTracker tracker = request.getTokenTracker();
+
+        long intentStart = System.currentTimeMillis();
+
+        AiResult<String> enriched = englishIntentAnalyzer.enrichWithMemory(
                 request.getRawQuestion(), memoryContext);
 
+        long intentDuration = System.currentTimeMillis() - intentStart;
+
+        tracker.record(
+                "english-memory-processor",
+                enriched.inputTokens(),
+                enriched.outputTokens(),
+                intentDuration
+        );
+
         request.setMemoryContext(memoryContext);
-        request.setEnrichedQuestion(enriched);
+        request.setEnrichedQuestion(enriched.result());
 
         log.info("[EnglishMemoryProcessor] Question enriched — from='{}' to='{}'",
-                request.getRawQuestion(), enriched);
+                request.getRawQuestion(), enriched.result());
     }
 
     @Override
