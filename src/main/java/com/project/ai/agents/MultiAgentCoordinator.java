@@ -35,13 +35,6 @@ public class MultiAgentCoordinator {
         return response;
     }
 
-    public MultimodalResponse delegate(MultimodalRequest request) {
-        log.info("[MultiAgentCoordinator] DELEGATE — language={}, inputType={}",
-                request.getDetectedLanguage(), request.getInputType());
-
-        return route(request);
-    }
-
     private MultimodalResponse route(MultimodalRequest request) {
         return orchestrators.stream()
                 .filter(o -> o.supports(request))

@@ -1,6 +1,7 @@
 package com.project.ai.processing.text.arabic;
 
 import com.project.ai.agents.Language;
+import com.project.ai.config.LangChain4jProperties;
 import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
@@ -40,6 +41,7 @@ public class ArabicSuggestionProcessor implements ChatProcessor {
     private final MatchedIdsResolver matchedIdsResolver;
     private final SearchService searchService;
     private final ChatModel chatModel;
+    private final LangChain4jProperties properties;
 
     public ArabicSuggestionProcessor(
             final EmbeddingStore<TextSegment> embeddingStore,
@@ -47,7 +49,8 @@ public class ArabicSuggestionProcessor implements ChatProcessor {
             final FilterProcessor arabicFilterProcessor,
             final MatchedIdsResolver matchedIdsResolver,
             final SearchService searchService,
-            @Qualifier("arabicChatModel") ChatModel chatModel
+            @Qualifier("arabicChatModel") ChatModel chatModel,
+            final LangChain4jProperties properties
     ) {
 
         this.embeddingStore = embeddingStore;
@@ -56,6 +59,7 @@ public class ArabicSuggestionProcessor implements ChatProcessor {
         this.arabicFilterProcessor = arabicFilterProcessor;
         this.searchService = searchService;
         this.chatModel = chatModel;
+        this.properties = properties;
     }
 
     @Override
@@ -148,6 +152,7 @@ public class ArabicSuggestionProcessor implements ChatProcessor {
 
         tracker.record(
                 "arabic-suggestion-processor",
+                properties.getChatModel().getOllama().getArabicModelName(),
                 answer.tokenUsage().inputTokenCount(),
                 answer.tokenUsage().outputTokenCount(),
                 intentDuration

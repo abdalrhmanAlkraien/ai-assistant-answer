@@ -1,5 +1,6 @@
 package com.project.ai.processing.text.arabic;
 
+import com.project.ai.config.LangChain4jProperties;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.TokenTracker;
@@ -23,11 +24,14 @@ import java.util.List;
 public class ArabicKnowledgeProcessor implements ChatProcessor {
 
     private final ChatModel chatModel;
+    private final LangChain4jProperties properties;
 
     public ArabicKnowledgeProcessor(
-            @Qualifier("arabicChatModel") ChatModel chatModel
+            @Qualifier("arabicChatModel") final ChatModel chatModel,
+            final LangChain4jProperties langChain4jProperties
     ) {
         this.chatModel = chatModel;
+        this.properties = langChain4jProperties;
     }
 
     @Override
@@ -62,6 +66,7 @@ public class ArabicKnowledgeProcessor implements ChatProcessor {
 
         tracker.record(
                 "arabic-knowledge-processor",
+                properties.getChatModel().getOllama().getArabicModelName(),
                 answer.tokenUsage().inputTokenCount(),
                 answer.tokenUsage().outputTokenCount(),
                 intentDuration

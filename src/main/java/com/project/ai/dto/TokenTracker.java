@@ -25,6 +25,7 @@ public class TokenTracker {
     @Getter private final String modelName;
     @Getter private final String userMessage;
 
+
     private final Instant startTime = Instant.now();
     private final List<CallEntry> entries = new ArrayList<>();
 
@@ -56,7 +57,7 @@ public class TokenTracker {
         int input    = tokens[0];
         int output   = tokens[1];
 
-        entries.add(new CallEntry(callName, input, output, duration, LocalDateTime.now()));
+        entries.add(new CallEntry(callName, input, output, duration, modelName, LocalDateTime.now()));
 
         log.info("[Token] [{}] call={} input={} output={} total={} duration={}ms",
                 requestId, callName, input, output, input + output, duration);
@@ -67,8 +68,8 @@ public class TokenTracker {
     /**
      * Use this when you already have token counts (e.g. from streaming).
      */
-    public void record(String callName, int inputTokens, int outputTokens, long durationMs) {
-        entries.add(new CallEntry(callName, inputTokens, outputTokens, durationMs, LocalDateTime.now()));
+    public void record(String callName, String modelName, int inputTokens, int outputTokens, long durationMs) {
+        entries.add(new CallEntry(callName, inputTokens, outputTokens, durationMs, modelName, LocalDateTime.now()));
 
         log.info("[Token] [{}] call={} input={} output={} total={} duration={}ms",
                 requestId, callName, inputTokens, outputTokens, inputTokens + outputTokens, durationMs);
@@ -87,6 +88,7 @@ public class TokenTracker {
             int inputTokens,
             int outputTokens,
             long durationMs,
+            String modelName,
             LocalDateTime calledAt
     ) {
         public int totalTokens() { return inputTokens + outputTokens; }

@@ -62,18 +62,6 @@ public class LangChain4jProperties {
     @Data
     public static class ChatModel {
         private Ollama ollama;
-        private NvidiaProperties nvidia;
-
-        @Data
-        public static class NvidiaProperties {
-            private String baseUrl;
-            private String apiKey;
-            private String modelName;
-            private String englishModelName;
-            private String arabicModelName;
-            private double temperature;
-            private String timeout;
-        }
 
         @Data
         public static class Ollama {
@@ -81,12 +69,11 @@ public class LangChain4jProperties {
             private String baseUrl;
             @NotBlank
             private String arabicModelName;
-
             @NotBlank
             private String englishModelName;
-
             @NotBlank
             private String modelName;
+            private String apiKey;
             private double temperature = 0.7;
             private Duration timeout = Duration.ofSeconds(60);
         }

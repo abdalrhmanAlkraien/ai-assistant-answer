@@ -5,6 +5,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.Set;
 
 /**
  * @author: Abd-alrhman Alkraien.
@@ -15,6 +16,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Log4j2
 public class CategoryNormalizer {
+
+    private static final Set<String> KNOWN_CATEGORIES = Set.of(
+            "laptops", "gaming laptops", "smartphones", "headphones",
+            "earbuds", "speakers", "tvs", "gaming", "wearables",
+            "cameras", "accessories", "smart home", "storage",
+            "monitors", "kitchen", "appliances", "shoes", "clothing"
+    );
 
     private static final Map<String, String> ARABIC_TO_ENGLISH = Map.ofEntries(
             // Arabic variants → English DB value

@@ -1,5 +1,6 @@
 package com.project.ai.processing.text.arabic;
 
+import com.project.ai.config.LangChain4jProperties;
 import com.project.ai.dto.AiResult;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
@@ -22,11 +23,16 @@ public class ArabicMemoryProcessor implements ChatProcessor, MemoryContext {
 
     private final MemoryService memoryService;
     private final IntentAnalyzer arabicIntentAnalyzer;
+    private final LangChain4jProperties properties;
 
-    public ArabicMemoryProcessor(final MemoryService memoryService, final ArabicIntentAnalyzer arabicIntentAnalyzer) {
+    public ArabicMemoryProcessor(
+            final MemoryService memoryService,
+            final ArabicIntentAnalyzer arabicIntentAnalyzer,
+            final LangChain4jProperties properties) {
 
         this.memoryService = memoryService;
         this.arabicIntentAnalyzer = arabicIntentAnalyzer;
+        this.properties = properties;
     }
 
     @Override
@@ -60,6 +66,7 @@ public class ArabicMemoryProcessor implements ChatProcessor, MemoryContext {
 
         tracker.record(
                 "arabic-memory-processor",
+                properties.getChatModel().getOllama().getArabicModelName(),
                 answer.inputTokens(),
                 answer.outputTokens(),
                 intentDuration

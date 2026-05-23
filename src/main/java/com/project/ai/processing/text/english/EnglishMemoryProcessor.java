@@ -1,5 +1,6 @@
 package com.project.ai.processing.text.english;
 
+import com.project.ai.config.LangChain4jProperties;
 import com.project.ai.dto.AiResult;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
@@ -23,6 +24,7 @@ public class EnglishMemoryProcessor implements ChatProcessor, MemoryContext {
 
     private final MemoryService memoryService;
     private final EnglishIntentAnalyzer englishIntentAnalyzer;
+    private final LangChain4jProperties properties;
 
     @Override
     public boolean supports(String searchType) {
@@ -54,6 +56,7 @@ public class EnglishMemoryProcessor implements ChatProcessor, MemoryContext {
 
         tracker.record(
                 "english-memory-processor",
+                properties.getChatModel().getOllama().getEnglishModelName(),
                 enriched.inputTokens(),
                 enriched.outputTokens(),
                 intentDuration

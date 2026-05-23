@@ -1,5 +1,6 @@
 package com.project.ai.processing.text.english;
 
+import com.project.ai.config.LangChain4jProperties;
 import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
@@ -41,6 +42,7 @@ public class EnglishSegmentProcessor implements ChatProcessor {
     private final EnglishSuggestionProcessor englishSuggestionProcessor;
     private final MatchedIdsResolver matchedIdsResolver;
     private final SearchService searchService;
+    private final LangChain4jProperties properties;
 
     public EnglishSegmentProcessor(
             final EmbeddingStore<TextSegment> embeddingStore,
@@ -48,7 +50,8 @@ public class EnglishSegmentProcessor implements ChatProcessor {
             final FilterProcessor filterProcessor,
             final EnglishSuggestionProcessor englishSuggestionProcessor,
             final MatchedIdsResolver matchedIdsResolver,
-            final SearchService searchService
+            final SearchService searchService,
+            final LangChain4jProperties properties
     ) {
 
         this.embeddingStore = embeddingStore;
@@ -57,6 +60,7 @@ public class EnglishSegmentProcessor implements ChatProcessor {
         this.englishSuggestionProcessor = englishSuggestionProcessor;
         this.matchedIdsResolver = matchedIdsResolver;
         this.searchService = searchService;
+        this.properties = properties;
     }
 
     @Override
@@ -104,6 +108,7 @@ public class EnglishSegmentProcessor implements ChatProcessor {
 
         tracker.record(
                 "english-knowledge-processor",
+                properties.getChatModel().getOllama().getEnglishModelName(),
                 answer.tokenUsage().inputTokenCount(),
                 answer.tokenUsage().outputTokenCount(),
                 intentDuration

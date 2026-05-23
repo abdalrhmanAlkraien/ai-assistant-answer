@@ -1,5 +1,6 @@
 package com.project.ai.processing.text.english;
 
+import com.project.ai.config.LangChain4jProperties;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.TokenTracker;
@@ -23,9 +24,13 @@ import java.util.List;
 public class EnglishKnowledgeProcessor implements ChatProcessor {
 
     private final ChatModel chatModel;
+    private final LangChain4jProperties properties;
 
-    public EnglishKnowledgeProcessor(@Qualifier("englishChatModel") final ChatModel chatModel) {
+    public EnglishKnowledgeProcessor(
+            @Qualifier("englishChatModel") final ChatModel chatModel,
+            final LangChain4jProperties properties) {
         this.chatModel = chatModel;
+        this.properties = properties;
     }
 
     @Override
@@ -55,6 +60,7 @@ public class EnglishKnowledgeProcessor implements ChatProcessor {
 
         tracker.record(
                 "english-knowledge-processor",
+                properties.getChatModel().getOllama().getEnglishModelName(),
                 answer.tokenUsage().inputTokenCount(),
                 answer.tokenUsage().outputTokenCount(),
                 intentDuration

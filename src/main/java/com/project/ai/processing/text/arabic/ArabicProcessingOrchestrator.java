@@ -1,5 +1,6 @@
 package com.project.ai.processing.text.arabic;
 
+import com.project.ai.config.LangChain4jProperties;
 import com.project.ai.dto.AiResult;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
@@ -30,6 +31,7 @@ public class ArabicProcessingOrchestrator implements ProcessingOrchestrator {
     private final ChatProcessor sortProcessor;
     private final ChatProcessor suggestionProcessor;
     private final CategoryNormalizer categoryNormalizer;
+    private final LangChain4jProperties properties;
 
     public ArabicProcessingOrchestrator(
             final ArabicMemoryProcessor memoryProcessor,
@@ -38,7 +40,8 @@ public class ArabicProcessingOrchestrator implements ProcessingOrchestrator {
             final ArabicSegmentProcessor segmentProcessor,
             final ArabicSortProcessor sortProcessor,
             final ArabicSuggestionProcessor suggestionProcessor,
-            final CategoryNormalizer categoryNormalizer
+            final CategoryNormalizer categoryNormalizer,
+            final LangChain4jProperties properties
     ) {
         this.memoryProcessor = memoryProcessor;
         this.intentAnalyzer = intentAnalyzer;
@@ -47,6 +50,7 @@ public class ArabicProcessingOrchestrator implements ProcessingOrchestrator {
         this.sortProcessor = sortProcessor;
         this.suggestionProcessor = suggestionProcessor;
         this.categoryNormalizer = categoryNormalizer;
+        this.properties = properties;
     }
 
     @Override
@@ -65,6 +69,7 @@ public class ArabicProcessingOrchestrator implements ProcessingOrchestrator {
 
         tracker.record(
                 "arabic-intent-analysis",
+                properties.getChatModel().getOllama().getArabicModelName(),
                 responseResult.inputTokens(),
                 responseResult.outputTokens(),
                 intentDuration

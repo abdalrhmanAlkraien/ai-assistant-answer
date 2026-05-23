@@ -55,76 +55,96 @@ public class RagConfig {
 
     @Bean
     public ChatModel chatModel() {
-        log.info("Creating NVIDIA ChatModel --> {} | {}",
-                properties.getChatModel().getNvidia().getBaseUrl(),
-                properties.getChatModel().getNvidia().getModelName());
 
-        return OpenAiChatModel.builder()
-                .baseUrl(properties.getChatModel().getNvidia().getBaseUrl())
-                .apiKey(properties.getChatModel().getNvidia().getApiKey())
-                .modelName(properties.getChatModel().getNvidia().getModelName())
-                .temperature(properties.getChatModel().getNvidia().getTemperature())
-                .timeout(Duration.ofMinutes(2))
-                .build();
+        if(properties.getChatModel().getOllama().getApiKey() == null) {
+            log.info("Creating Ollama ChatModel --> {} | {}",
+                    properties.getChatModel().getOllama().getBaseUrl(),
+                    properties.getChatModel().getOllama().getModelName());
+
+            return OllamaChatModel.builder()
+                    .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
+                    .modelName(properties.getChatModel().getOllama().getModelName())
+                    .temperature(0.7)
+                    .timeout(Duration.ofMinutes(2))
+                    .build();
+        } else {
+            log.info("Creating NVIDIA ChatModel --> {} | {}",
+                    properties.getChatModel().getOllama().getBaseUrl(),
+                    properties.getChatModel().getOllama().getModelName());
+
+            return OpenAiChatModel.builder()
+                    .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
+                    .apiKey(properties.getChatModel().getOllama().getApiKey())
+                    .modelName(properties.getChatModel().getOllama().getModelName())
+                    .temperature(properties.getChatModel().getOllama().getTemperature())
+                    .timeout(properties.getChatModel().getOllama().getTimeout())
+                    .build();
+        }
+
     }
 
     @Bean("englishChatModel")
     @Primary
-    public ChatModel englishChatModel() {
-        return OpenAiChatModel.builder()
-                .baseUrl(properties.getChatModel().getNvidia().getBaseUrl())
-                .apiKey(properties.getChatModel().getNvidia().getApiKey())
-                .modelName(properties.getChatModel().getNvidia().getEnglishModelName())
-                .temperature(properties.getChatModel().getNvidia().getTemperature())
-                .timeout(Duration.ofMinutes(2))
-                .build();
+    public ChatModel englishChatModel(LangChain4jProperties properties) {
+
+        if(properties.getChatModel().getOllama().getApiKey() == null) {
+
+            log.info("Creating Ollama ChatModel --> {} | {}",
+                    properties.getChatModel().getOllama().getBaseUrl(),
+                    properties.getChatModel().getOllama().getModelName());
+
+            return OllamaChatModel.builder()
+                    .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
+                    .modelName(properties.getChatModel().getOllama().getEnglishModelName())
+                    .temperature(properties.getChatModel().getOllama().getTemperature())
+                    .timeout(Duration.ofMinutes(2))
+                    .build();
+        } else {
+
+            log.info("Creating NVIDIA ChatModel --> {} | {}",
+                    properties.getChatModel().getOllama().getBaseUrl(),
+                    properties.getChatModel().getOllama().getModelName());
+
+            return OpenAiChatModel.builder()
+                    .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
+                    .apiKey(properties.getChatModel().getOllama().getApiKey())
+                    .modelName(properties.getChatModel().getOllama().getEnglishModelName())
+                    .temperature(properties.getChatModel().getOllama().getTemperature())
+                    .timeout(properties.getChatModel().getOllama().getTimeout())
+                    .build();
+        }
     }
 
     @Bean("arabicChatModel")
-    public ChatModel arabicChatModel() {
-        return OpenAiChatModel.builder()
-                .baseUrl(properties.getChatModel().getNvidia().getBaseUrl())
-                .apiKey(properties.getChatModel().getNvidia().getApiKey())
-                .modelName(properties.getChatModel().getNvidia().getArabicModelName())
-                .temperature(properties.getChatModel().getNvidia().getTemperature())
-                .timeout(Duration.ofMinutes(2))
-                .build();
-    }
+    public ChatModel arabicChatModel(LangChain4jProperties properties) {
 
-//    @Bean
-//    public ChatModel chatModel() {
-//        log.info("Creating Ollama ChatModel --> {} | {}",
-//                properties.getChatModel().getOllama().getBaseUrl(),
-//                properties.getChatModel().getOllama().getModelName());
-//
-//        return OllamaChatModel.builder()
-//                .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
-//                .modelName(properties.getChatModel().getOllama().getModelName())
-//                .temperature(0.7)
-//                .timeout(Duration.ofMinutes(2))
-//                .build();
-//    }
-//
-//    @Bean("englishChatModel")
-//    @Primary
-//    public ChatModel englishChatModel(LangChain4jProperties properties) {
-//        return OllamaChatModel.builder()
-//                .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
-//                .modelName(properties.getChatModel().getOllama().getEnglishModelName())
-//                .temperature(properties.getChatModel().getOllama().getTemperature())
-//                .timeout(Duration.ofMinutes(2))
-//                .build();
-//    }
-//
-//    @Bean("arabicChatModel")
-//    public ChatModel arabicChatModel(LangChain4jProperties properties) {
-//        return OllamaChatModel.builder()
-//                .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
-//                .modelName(properties.getChatModel().getOllama().getArabicModelName())
-//                .temperature(properties.getChatModel().getOllama().getTemperature())
-//                .timeout(Duration.ofMinutes(2))
-//                .build();
-//    }
+        if(properties.getChatModel().getOllama().getApiKey() == null) {
+
+            log.info("Creating Ollama ChatModel --> {} | {}",
+                    properties.getChatModel().getOllama().getBaseUrl(),
+                    properties.getChatModel().getOllama().getModelName());
+
+            return OllamaChatModel.builder()
+                    .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
+                    .modelName(properties.getChatModel().getOllama().getArabicModelName())
+                    .temperature(properties.getChatModel().getOllama().getTemperature())
+                    .timeout(Duration.ofMinutes(2))
+                    .build();
+        } else {
+
+            log.info("Creating NVIDIA ChatModel --> {} | {}",
+                    properties.getChatModel().getOllama().getBaseUrl(),
+                    properties.getChatModel().getOllama().getModelName());
+
+            return OpenAiChatModel.builder()
+                    .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
+                    .apiKey(properties.getChatModel().getOllama().getApiKey())
+                    .modelName(properties.getChatModel().getOllama().getArabicModelName())
+                    .temperature(properties.getChatModel().getOllama().getTemperature())
+                    .timeout(properties.getChatModel().getOllama().getTimeout())
+                    .build();
+        }
+    }
 
     @Bean
     public ApacheTikaDocumentParser tikaParser() {
