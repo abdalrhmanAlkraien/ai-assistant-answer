@@ -1,6 +1,8 @@
 package com.project.ai.processing.text.english;
 
 import com.project.ai.config.LangChain4jProperties;
+import com.project.ai.config.PromptKeys;
+import com.project.ai.loader.PromptLoader;
 import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
@@ -34,7 +36,17 @@ import java.util.Set;
 public class EnglishSegmentProcessor implements ChatProcessor {
 
     private static final Set<String> SUPPORTED = Set.of(
-            "semantic", "price", "category", "brand", "hybrid", "comparison");
+            "semantic",     // best product for use case
+            "price",        // price range filter
+            "category",     // category listing
+            "brand",        // brand listing
+            "hybrid",       // combined filters
+            "comparison"    // compare specific products
+            // "sort"    → handled by EnglishSortProcessor before reaching here
+            // "suggest" → handled by EnglishSuggestionProcessor before reaching here
+            // "bundle"  → handled by Tier3 multi-step, never reaches here
+            // "knowledge" → handled by EnglishKnowledgeProcessor before reaching here
+    );
 
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final ChatModel chatModel;
@@ -43,6 +55,7 @@ public class EnglishSegmentProcessor implements ChatProcessor {
     private final MatchedIdsResolver matchedIdsResolver;
     private final SearchService searchService;
     private final LangChain4jProperties properties;
+    private final PromptLoader promptLoader;
 
     public EnglishSegmentProcessor(
             final EmbeddingStore<TextSegment> embeddingStore,
@@ -51,7 +64,8 @@ public class EnglishSegmentProcessor implements ChatProcessor {
             final EnglishSuggestionProcessor englishSuggestionProcessor,
             final MatchedIdsResolver matchedIdsResolver,
             final SearchService searchService,
-            final LangChain4jProperties properties
+            final LangChain4jProperties properties,
+            final PromptLoader promptLoader
     ) {
 
         this.embeddingStore = embeddingStore;
@@ -61,6 +75,7 @@ public class EnglishSegmentProcessor implements ChatProcessor {
         this.matchedIdsResolver = matchedIdsResolver;
         this.searchService = searchService;
         this.properties = properties;
+        this.promptLoader = promptLoader;
     }
 
     @Override
@@ -108,15 +123,13 @@ public class EnglishSegmentProcessor implements ChatProcessor {
 
         tracker.record(
                 "english-knowledge-processor",
-                properties.getChatModel().getOllama().getEnglishModelName(),
+                properties.getChatModel().getModels().get("english").getModelName(),
                 answer.tokenUsage().inputTokenCount(),
                 answer.tokenUsage().outputTokenCount(),
                 intentDuration
         );
 
         log.debug("[EnglishSegmentProcessor] LLM answer:\n{}", answer.aiMessage().text());
-
-        matchedIdsResolver.resolve(answer.aiMessage().text(), filteredContext, intent);
 
         // 5. Extract matched IDs
         List<String> matchedIds = matchedIdsResolver.resolve(answer.aiMessage().text(), filteredContext, intent);
@@ -130,146 +143,77 @@ public class EnglishSegmentProcessor implements ChatProcessor {
                 .build();
     }
 
-    private String buildPrompt(
-            final SearchIntent intent,
-            final FilteredContext filteredContext,
-            final String userQuestion,
-            final String memoryContext) {
 
-        String memorySection = memoryContext.isEmpty() ? "" : """
-                User conversation history:
-                %s
-                
-                """.formatted(memoryContext);
+    private String buildPrompt(SearchIntent intent, FilteredContext filteredContext,
+                               String userQuestion, String memoryContext) {
+
+        String memorySection = (memoryContext != null && !memoryContext.isEmpty()
+                && needsMemory(intent.getSearchType()))
+                ? "User conversation history:\n%s\n\n".formatted(memoryContext)
+                : "";
 
         String context = filteredContext.getContext();
         int count = filteredContext.getFilteredMatches().size();
 
+        String promptKey = resolvePromptKey(intent.getSearchType());
+        String template = promptLoader.get(promptKey);
+
         return switch (intent.getSearchType()) {
-            case "price" -> """
-                    You are a product listing assistant.
-                    Java has already filtered these %d products for you.
-                    Your ONLY job is to list ALL %d products. Do not skip any.
-                    
-                    Products:
-                    %s
-                    
-                    %s
-                    List all %d products:
-                    Format: "Product Name - $Price - Category"
-                    """.formatted(count, count, context, memorySection, count);
 
+            case "price" -> template.formatted(
+                    count, count, context, memorySection, count);
 
-            case "category" -> """
-                    You are a product listing assistant.
-                    The user is looking for: "%s" products.
-                    
-                    Review the products below and include ONLY products related to "%s".
-                    Rules:
-                    - Include products whose category exactly matches or is a subcategory of "%s"
-                    - Include products whose description or tags are clearly related to "%s"
-                    - Exclude products that are clearly unrelated to "%s"
-                    
-                    Products:
-                    %s
-                    
-                    %s
-                    List the relevant products, one per line using this format (do not print this line):
-                    Product Name - $Price - Category
-                    """.formatted(
+            case "category" -> template.formatted(
                     intent.getCategory(), intent.getCategory(),
                     intent.getCategory(), intent.getCategory(),
-                    intent.getCategory(),
-                    context,
-                    memorySection);
+                    intent.getCategory(), context, memorySection);
 
-            case "brand" -> """
-                    You are a product listing assistant.
-                    The user is looking for products from these brands: "%s".
-                    
-                    Review the products below and include ONLY products that belong to any of these brands.
-                    If a product is clearly from a different brand, exclude it.
-                    
-                    Products:
-                    %s
-                    
-                    %s
-                    List the relevant products:
-                    Format: "Product Name - $Price - Category"
-                    """.formatted(intent.getBrand(), context, memorySection);
+            case "brand" -> template.formatted(
+                    intent.getBrand(), context, memorySection);
 
-            case "hybrid" -> """
-                    You are a product filter. Filter products by ALL of these criteria:
-                    %s%s%s
-                    
-                    Only include products matching ALL criteria. Exclude everything else.
-                    
-                    Products:
-                    %s
-                    
-                    %s
-                    Format: "Product Name - $Price - Category"
-                    """.formatted(
+            case "hybrid" -> template.formatted(
                     intent.getMinPrice() != null ? "- Price >= $" + intent.getMinPrice() + "\n" : "",
                     intent.getMaxPrice() != null ? "- Price <= $" + intent.getMaxPrice() + "\n" : "",
                     intent.getBrand() != null ? "- Brand: " + intent.getBrand() + "\n" : "",
                     context, memorySection);
 
-            case "comparison" -> """
-                    You are a helpful e-commerce assistant.
-                    Compare the products below and answer the user's question directly.
-                    Be concise — give a clear winner or direct answer.
-                    At the end list: "Product IDs: ..."
-                    
-                    Products:
-                    %s
-                    
-                    %s
-                    User Question: %s
-                    
-                    Answer:
-                    """.formatted(context, memorySection, userQuestion);
-            case "semantic" -> """
-                    You are a helpful e-commerce assistant.
-                    The user is looking for: "%s"
-                    Answer based ONLY on the products listed below.
-                    %s%s
-                    Rules:
-                    - Only recommend products that are relevant to the user's request
-                    - %s
-                    - Prioritize the product that BEST matches the use case, not the cheapest one
-                    - Be concise and explain why each product fits
-                    - At the end list: "Product IDs: ..."
-                    
-                    Products:
-                    %s
-                    
-                    %sAnswer:
-                    """.formatted(
+            case "comparison" -> template.formatted(
+                    context, memorySection, userQuestion);
+
+            case "semantic" -> template.formatted(
                     intent.getSemanticQuery(),
                     intent.getMaxPrice() != null ? "- Max price: $" + intent.getMaxPrice() + "\n" : "",
                     intent.getCategory() != null ? "- Category: " + intent.getCategory() + "\n" : "",
                     intent.getMaxPrice() != null
-                            ? "Respect the price constraint — do NOT recommend products above $" + intent.getMaxPrice()
-                            : "There is NO price constraint — recommend the BEST product for the use case regardless of price",
-                    context,
-                    memorySection);
+                            ? "Respect the price constraint — do NOT recommend products above $"
+                            + intent.getMaxPrice()
+                            : "There is NO price constraint — recommend the BEST product regardless of price",
+                    context, memorySection);
 
-            default -> """
-                    You are a helpful e-commerce assistant.
-                    Answer the user's question based ONLY on the products listed below.
-                    Each product starts with its ID in brackets.
-                    Be concise and helpful.
-                    At the end, list the IDs of products you mentioned as: "Product IDs: ..."
-                    
-                    Products:
-                    %s
-                    
-                    %s
-                    User Question: %s
-                    
-                    Answer:
-                    """.formatted(context, memorySection, userQuestion);
+            default -> {
+                log.warn("[EnglishSegmentProcessor] unexpected searchType='{}' — using default prompt",
+                        intent.getSearchType());
+                yield template.formatted(context, memorySection, userQuestion);
+            }
+        };
+    }
+
+    private String resolvePromptKey(String searchType) {
+        return switch (searchType) {
+            case "price"      -> PromptKeys.SEGMENT_ENGLISH_PRICE;
+            case "category"   -> PromptKeys.SEGMENT_ENGLISH_CATEGORY;
+            case "brand"      -> PromptKeys.SEGMENT_ENGLISH_BRAND;
+            case "hybrid"     -> PromptKeys.SEGMENT_ENGLISH_HYBRID;
+            case "comparison" -> PromptKeys.SEGMENT_ENGLISH_COMPARISON;
+            case "semantic"   -> PromptKeys.SEGMENT_ENGLISH_SEMANTIC;
+            default           -> PromptKeys.SEGMENT_ENGLISH_DEFAULT;
+        };
+    }
+
+    private boolean needsMemory(String searchType) {
+        return switch (searchType) {
+            case "comparison", "semantic", "knowledge", "suggest" -> true;
+            default -> false;
         };
     }
 }

@@ -8,9 +8,13 @@ import com.project.ai.dto.TokenTracker;
 import com.project.ai.processing.ChatProcessor;
 import com.project.ai.processing.text.structure.MemoryContext;
 import com.project.ai.service.MemoryService;
+import dev.langchain4j.model.chat.ChatModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+
+import java.util.Set;
 
 /**
  * @author: Abd-alrhman Alkraien.
@@ -23,8 +27,8 @@ import org.springframework.stereotype.Service;
 public class EnglishMemoryProcessor implements ChatProcessor, MemoryContext {
 
     private final MemoryService memoryService;
-    private final EnglishIntentAnalyzer englishIntentAnalyzer;
-    private final LangChain4jProperties properties;
+    @Qualifier("englishChatModel")
+    private final ChatModel chatModel;   // inject fastChatModel
 
     @Override
     public boolean supports(String searchType) {
@@ -34,39 +38,6 @@ public class EnglishMemoryProcessor implements ChatProcessor, MemoryContext {
     @Override
     public ProcessingResult process(ProcessingRequest request) {
         throw new UnsupportedOperationException("EnglishMemoryProcessor is used as pre/post step only");
-    }
-
-    @Override
-    public void prepareContext(final ProcessingRequest request) {
-        log.info("[EnglishMemoryProcessor] prepareContext START — userId={}", request.getUserId());
-
-        String memoryContext = memoryService.memoryContext(
-                request.getUserId(), request.getRawQuestion());
-
-        log.debug("[EnglishMemoryProcessor] Memory context loaded:\n{}", memoryContext);
-
-        TokenTracker tracker = request.getTokenTracker();
-
-        long intentStart = System.currentTimeMillis();
-
-        AiResult<String> enriched = englishIntentAnalyzer.enrichWithMemory(
-                request.getRawQuestion(), memoryContext);
-
-        long intentDuration = System.currentTimeMillis() - intentStart;
-
-        tracker.record(
-                "english-memory-processor",
-                properties.getChatModel().getOllama().getEnglishModelName(),
-                enriched.inputTokens(),
-                enriched.outputTokens(),
-                intentDuration
-        );
-
-        request.setMemoryContext(memoryContext);
-        request.setEnrichedQuestion(enriched.result());
-
-        log.info("[EnglishMemoryProcessor] Question enriched — from='{}' to='{}'",
-                request.getRawQuestion(), enriched.result());
     }
 
     @Override
@@ -93,17 +64,60 @@ public class EnglishMemoryProcessor implements ChatProcessor, MemoryContext {
                 request.getSearchIntent().getSemanticQuery(),
                 matchedProducts);
 
+        String summarized = summarizeIfNeeded(cleanAnswer, result.getType());
+
         log.debug("[EnglishMemoryProcessor] Saving AI answer='{}'", result.getAnswer());
 
         memoryService.saveMemory(
                 request.getUserId(),
                 request.getSearchIntent(),
                 com.project.ai.model.MessageRole.AI,
-                cleanAnswer,
+                summarized,
                 matchedProducts);
 
         log.debug("[EnglishMemoryProcessor] Saving matchedProducts={}", result.getMatchedIds());
 
         log.info("[EnglishMemoryProcessor] saveToMemory END");
+    }
+
+
+    private String summarizeIfNeeded(String answer, String type) {
+        if (answer == null || answer.isBlank()) return "";
+
+        // listing types — already short, no summarization needed
+        if (Set.of("category", "brand", "price", "hybrid", "sort").contains(type)) {
+            return answer.length() > 300
+                    ? answer.substring(0, 300) + "..."
+                    : answer;
+        }
+
+        // knowledge, semantic, comparison — may be verbose, summarize
+        if (answer.length() > 300) {
+            log.info("[EnglishMemoryProcessor] summarizing answer length={} type={}",
+                    answer.length(), type);
+            return summarize(answer);
+        }
+
+        return answer;
+    }
+
+    private String summarize(String answer) {
+        try {
+            String prompt = """
+                Summarize this in 1-2 sentences, keeping key facts only.
+                Return ONLY the summary, nothing else.
+                
+                Text: %s
+                """.formatted(answer);
+
+            String summary = chatModel.chat(prompt).trim();
+            log.info("[EnglishMemoryProcessor] summarized {} → {} chars",
+                    answer.length(), summary.length());
+            return summary;
+
+        } catch (Exception e) {
+            log.warn("[EnglishMemoryProcessor] summarization failed — truncating: {}", e.getMessage());
+            return answer.substring(0, 300) + "...";
+        }
     }
 }

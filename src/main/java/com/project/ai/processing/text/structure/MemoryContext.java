@@ -10,6 +10,6 @@ import com.project.ai.dto.ProcessingResult;
  */
 public interface MemoryContext {
 
-    void prepareContext(final ProcessingRequest request);
+//    void prepareContext(final ProcessingRequest request);
     void saveToMemory(final ProcessingRequest request, ProcessingResult result);
 }

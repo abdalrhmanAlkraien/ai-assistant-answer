@@ -1,6 +1,7 @@
 package com.project.ai.controller;
 
 import com.project.ai.dto.CategoryRequest;
+import com.project.ai.loader.CategoryLoader;
 import com.project.ai.model.Category;
 import com.project.ai.service.CategoryService;
 import jakarta.validation.Valid;
@@ -30,6 +31,7 @@ public class CategoryController {
 
 
     private final CategoryService categoryService;
+    private final CategoryLoader categoryLoader;
 
     @PostMapping
     public ResponseEntity<Category> create(@RequestBody @Valid CategoryRequest request) {
@@ -60,5 +62,11 @@ public class CategoryController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         categoryService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/categories/reload")
+    public ResponseEntity<String> reloadCategories() {
+        categoryLoader.reload();
+        return ResponseEntity.ok("Categories reloaded");
     }
 }

@@ -6,6 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author: Abd-alrhman Alkraien.
@@ -61,21 +63,40 @@ public class LangChain4jProperties {
     // ─── Chat Model ───────────────────────────────────────────
     @Data
     public static class ChatModel {
-        private Ollama ollama;
+        private Ollama ollama;                          // keep existing
+        private Double temperature = 0.7;
+        private Duration timeout = Duration.ofSeconds(180);
+        private Map<String, ProviderConfig> providers = new HashMap<>();
+        private Map<String, ModelConfig> models = new HashMap<>();
 
+        // ── keep existing for backward compatibility ──────────
         @Data
         public static class Ollama {
-            @NotBlank
             private String baseUrl;
-            @NotBlank
             private String arabicModelName;
-            @NotBlank
             private String englishModelName;
-            @NotBlank
             private String modelName;
             private String apiKey;
             private double temperature = 0.7;
             private Duration timeout = Duration.ofSeconds(60);
+        }
+
+        // ── new provider config ───────────────────────────────
+        @Data
+        public static class ProviderConfig {
+            private String baseUrl;
+            private String apiKey;
+            private String region;      // bedrock only
+            private String accessKey;   // bedrock only
+            private String secretKey;   // bedrock only
+        }
+
+        // ── new model config ──────────────────────────────────
+        @Data
+        public static class ModelConfig {
+            private String modelName;
+            private String provider;    // nvidia | ollama | bedrock
+            private Integer maxTokens;
         }
     }
 

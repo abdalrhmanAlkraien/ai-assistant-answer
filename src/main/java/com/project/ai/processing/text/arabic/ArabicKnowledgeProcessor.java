@@ -1,6 +1,8 @@
 package com.project.ai.processing.text.arabic;
 
 import com.project.ai.config.LangChain4jProperties;
+import com.project.ai.config.PromptKeys;
+import com.project.ai.loader.PromptLoader;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.TokenTracker;
@@ -8,6 +10,7 @@ import com.project.ai.processing.ChatProcessor;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.response.ChatResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -21,18 +24,14 @@ import java.util.List;
  */
 @Service
 @Log4j2
+@RequiredArgsConstructor
 public class ArabicKnowledgeProcessor implements ChatProcessor {
 
+    @Qualifier("arabicChatModel")
     private final ChatModel chatModel;
     private final LangChain4jProperties properties;
+    private final PromptLoader promptLoader;
 
-    public ArabicKnowledgeProcessor(
-            @Qualifier("arabicChatModel") final ChatModel chatModel,
-            final LangChain4jProperties langChain4jProperties
-    ) {
-        this.chatModel = chatModel;
-        this.properties = langChain4jProperties;
-    }
 
     @Override
     public boolean supports(String searchType) {
@@ -48,19 +47,13 @@ public class ArabicKnowledgeProcessor implements ChatProcessor {
 
         long intentStart = System.currentTimeMillis();
 
-        String question = """
-                أنت مساعد مفيد لمنصة تجارة إلكترونية.
-                أجب على هذا السؤال بناءً على معرفتك.
-                كن مختصراً ومفيداً.
-                أجب دائماً باللغة العربية.
-                
-                السؤال: %s
-                
-               تذكر: الإجابة باللغة العربية فقط.
-                
-                """.formatted(request.getRawQuestion());
+        String promptTemplate = promptLoader.get(PromptKeys.KNOWLEDGE_ARABIC);
+        String prompt = promptTemplate.formatted(
+                request.getMemoryContext() == null ? "" : request.getMemoryContext(),
+                request.getEnrichedQuestion()
+        );
 
-        ChatResponse answer = chatModel.chat(UserMessage.from(question));
+        ChatResponse answer = chatModel.chat(UserMessage.from(prompt));
 
         long intentDuration = System.currentTimeMillis() - intentStart;
 

@@ -141,7 +141,7 @@ public class EnglishSuggestionProcessor implements ChatProcessor {
                 : request.getRawQuestion();
 
 
-        String question = suggestionService.suggestionProduct(enrichedQuestion, cappedContext, Language.ARABIC);
+        String question = suggestionService.suggestionProduct(enrichedQuestion, cappedContext, Language.ENGLISH);
 
         TokenTracker tracker = request.getTokenTracker();
 

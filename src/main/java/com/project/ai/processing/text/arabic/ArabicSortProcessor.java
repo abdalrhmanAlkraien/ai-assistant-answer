@@ -1,17 +1,11 @@
 package com.project.ai.processing.text.arabic;
 
-import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.SearchIntent;
+import com.project.ai.model.Product;
 import com.project.ai.processing.ChatProcessor;
-import com.project.ai.processing.text.structure.FilterProcessor;
-import com.project.ai.processing.text.structure.MatchedIdsResolver;
-import com.project.ai.service.SearchService;
-import dev.langchain4j.data.segment.TextSegment;
-import dev.langchain4j.store.embedding.EmbeddingMatch;
-import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
-import dev.langchain4j.store.embedding.EmbeddingStore;
+import com.project.ai.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -31,10 +25,8 @@ import java.util.stream.Collectors;
 @Log4j2
 public class ArabicSortProcessor implements ChatProcessor {
 
-    private final EmbeddingStore<TextSegment> embeddingStore;
-    private final FilterProcessor filterProcessor;
-    private final MatchedIdsResolver matchedIdsResolver;
-    private final SearchService searchService;
+    private final ProductRepository productRepository;
+
 
     @Override
     public boolean supports(String searchType) {
@@ -45,62 +37,41 @@ public class ArabicSortProcessor implements ChatProcessor {
     public ProcessingResult process(ProcessingRequest request) {
 
         SearchIntent intent = request.getSearchIntent();
-        log.info("[ArabicSortProcessor] START — direction={}", intent.getSortDirection());
-
-        // re-search using enriched question to get relevant products
-        String query = request.getEnrichedQuestion() != null
-                ? request.getEnrichedQuestion()
-                : request.getRawQuestion();
-
-        EmbeddingSearchRequest searchRequest = searchService.buildSearchRequest(intent);
-
-        List<EmbeddingMatch<TextSegment>> matches = embeddingStore
-                .search(searchRequest)
-                .matches();
-
-        log.info("[ArabicSortProcessor] Vector search returned {} matches", matches.size());
-
-        FilteredContext filteredContext = filterProcessor.filter(matches, intent);
-
-        log.info("[ArabicSortProcessor] After filter: {} products",
-                filteredContext.getFilteredMatches().size());
-
-
-        List<EmbeddingMatch<TextSegment>> toSort = filteredContext.getFilteredMatches().isEmpty()
-                ? matches
-                : filteredContext.getFilteredMatches();
+        log.info("[ArabicSortProcessor] START — direction={} category={} brand={}",
+                intent.getSortDirection(), intent.getCategory(), intent.getBrand());
 
         boolean ascending = !"desc".equals(intent.getSortDirection());
 
-        List<EmbeddingMatch<TextSegment>> sorted = toSort.stream()
-                .sorted((a, b) -> {
-                    Double priceA = extractPrice(a.embedded().text());
-                    Double priceB = extractPrice(b.embedded().text());
-                    if (priceA == null) return 1;
-                    if (priceB == null) return -1;
-                    return ascending
-                            ? Double.compare(priceA, priceB)
-                            : Double.compare(priceB, priceA);
-                })
+        // fetch from PostgreSQL directly — no vector search needed
+        List<Product> products = fetchProducts(intent);
+
+        if (products.isEmpty()) {
+            log.info("[ArabicSortProcessor] No products found for sort");
+            return ProcessingResult.builder()
+                    .enrichedQuestion(intent.getSemanticQuery())
+                    .type("sort")
+                    .answer("لم يتم العثور على منتجات للترتيب.")
+                    .matchedIds(List.of())
+                    .build();
+        }
+
+        List<Product> sorted = products.stream()
+                .sorted((a, b) -> ascending
+                        ? Double.compare(a.getPrice(), b.getPrice())
+                        : Double.compare(b.getPrice(), a.getPrice()))
                 .toList();
 
+
+        // build answer
         String answer = sorted.stream()
-                .map(m -> {
-                    String title = extractField(m.embedded().text(), "Title");
-                    String price = extractField(m.embedded().text(), "Price");
-                    String category = extractField(m.embedded().text(), "Category");
-                    return title + " - " + price + " - " + category;
-                })
+                .map(p -> p.getTitle() + " - " + p.getPrice() + " USD - " + p.getCategory())
                 .collect(Collectors.joining("\n"));
 
-        FilteredContext sortedContext = FilteredContext.builder()
-                .filteredMatches(sorted)
-                .context(answer)
-                .build();
+        List<String> matchedIds = sorted.stream()
+                .map(Product::getProductId)
+                .toList();
 
-        List<String> matchedIds = matchedIdsResolver.resolve("", sortedContext, intent);
-
-        log.info("[ArabicSortProcessor] END — sorted={}, direction={}",
+        log.info("[ArabicSortProcessor] END — sorted={} direction={}",
                 sorted.size(), ascending ? "asc" : "desc");
 
         return ProcessingResult.builder()
@@ -111,20 +82,28 @@ public class ArabicSortProcessor implements ChatProcessor {
                 .build();
     }
 
-    private Double extractPrice(String content) {
-        try {
-            Pattern pattern = Pattern.compile("Price:\\s*(\\d+(?:\\.\\d+)?)\\s*USD");
-            Matcher matcher = pattern.matcher(content);
-            if (matcher.find()) return Double.parseDouble(matcher.group(1));
-        } catch (Exception e) {
-            log.warn("[ArabicSortProcessor] Failed to extract price from: {}", content);
-        }
-        return null;
-    }
 
-    private String extractField(String text, String field) {
-        Pattern pattern = Pattern.compile(field + ":\\s*([^\\n]+?)(?=\\s+\\w+:|$)");
-        Matcher matcher = pattern.matcher(text);
-        return matcher.find() ? matcher.group(1).trim() : "";
+    private List<Product> fetchProducts(SearchIntent intent) {
+        // category filter
+        if (intent.getCategory() != null && intent.getBrand() != null) {
+            log.info("[ArabicSortProcessor] fetching by category={} brand={}",
+                    intent.getCategory(), intent.getBrand());
+            return productRepository.findActiveByCategoryAndBrand(
+                    intent.getCategory(), intent.getBrand());
+        }
+
+        if (intent.getCategory() != null) {
+            log.info("[ArabicSortProcessor] fetching by category={}", intent.getCategory());
+            return productRepository.findActiveByCategory(intent.getCategory());
+        }
+
+        if (intent.getBrand() != null) {
+            log.info("[ArabicSortProcessor] fetching by brand={}", intent.getBrand());
+            return productRepository.findActiveByBrand(intent.getBrand());
+        }
+
+        // no filter — fetch all active products
+        log.info("[ArabicSortProcessor] fetching all active products");
+        return productRepository.findAllActive();
     }
 }

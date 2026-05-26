@@ -43,4 +43,7 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     @Query("SELECT c.name FROM Category c WHERE c.active = true")
     List<String> findAllActiveNames();
+
+    @Query("SELECT c FROM Category c WHERE c.active = true AND c.nameArabic IS NOT NULL")
+    List<Category> findAllActiveWithArabicName();
 }

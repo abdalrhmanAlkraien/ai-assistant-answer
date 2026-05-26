@@ -1,16 +1,19 @@
 package com.project.ai.processing.text.arabic;
 
 import com.project.ai.config.LangChain4jProperties;
-import com.project.ai.dto.AiResult;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
-import com.project.ai.dto.TokenTracker;
 import com.project.ai.processing.ChatProcessor;
 import com.project.ai.processing.text.structure.IntentAnalyzer;
 import com.project.ai.processing.text.structure.MemoryContext;
 import com.project.ai.service.MemoryService;
+import dev.langchain4j.model.chat.ChatModel;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+
+import java.util.Set;
 
 /**
  * @author: Abd-alrhman Alkraien.
@@ -19,21 +22,13 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @Log4j2
+@RequiredArgsConstructor
 public class ArabicMemoryProcessor implements ChatProcessor, MemoryContext {
 
     private final MemoryService memoryService;
-    private final IntentAnalyzer arabicIntentAnalyzer;
-    private final LangChain4jProperties properties;
+    @Qualifier("arabicChatModel")
+    private final ChatModel chatModel;   // inject fastChatModel
 
-    public ArabicMemoryProcessor(
-            final MemoryService memoryService,
-            final ArabicIntentAnalyzer arabicIntentAnalyzer,
-            final LangChain4jProperties properties) {
-
-        this.memoryService = memoryService;
-        this.arabicIntentAnalyzer = arabicIntentAnalyzer;
-        this.properties = properties;
-    }
 
     @Override
     public ProcessingResult process(ProcessingRequest request) {
@@ -43,40 +38,6 @@ public class ArabicMemoryProcessor implements ChatProcessor, MemoryContext {
     @Override
     public boolean supports(String searchType) {
         return false;
-    }
-
-    @Override
-    public void prepareContext(ProcessingRequest request) {
-
-        log.info("[ArabicMemoryProcessor] prepareContext START — userId={}", request.getUserId());
-
-        String memoryContext = memoryService.memoryContext(
-                request.getUserId(), request.getRawQuestion());
-
-        log.debug("[ArabicMemoryProcessor] Memory context:\n{}", memoryContext);
-
-        TokenTracker tracker = request.getTokenTracker();
-
-        long intentStart = System.currentTimeMillis();
-
-        AiResult<String> answer = arabicIntentAnalyzer.enrichWithMemory(
-                request.getRawQuestion(), memoryContext);
-
-        long intentDuration = System.currentTimeMillis() - intentStart;
-
-        tracker.record(
-                "arabic-memory-processor",
-                properties.getChatModel().getOllama().getArabicModelName(),
-                answer.inputTokens(),
-                answer.outputTokens(),
-                intentDuration
-        );
-
-        log.info("[ArabicMemoryProcessor] enriched: '{}' → '{}'",
-                request.getRawQuestion(), answer.result());
-
-        request.setMemoryContext(memoryContext);
-        request.setEnrichedQuestion(answer.result().trim());
     }
 
     @Override
@@ -93,7 +54,6 @@ public class ArabicMemoryProcessor implements ChatProcessor, MemoryContext {
                 .replaceAll("(?m)^Product Name.*$", "")
                 .trim();
 
-
         log.debug("[ArabicMemoryProcessor] Saving USER message='{}'", request.getUserId());
 
         memoryService.saveMemory(
@@ -105,15 +65,57 @@ public class ArabicMemoryProcessor implements ChatProcessor, MemoryContext {
 
         log.debug("[ArabicMemoryProcessor] Saving AI answer='{}'", result.getAnswer());
 
+        String summarized = summarizeIfNeeded(cleanAnswer, result.getType());
+
         memoryService.saveMemory(
                 request.getUserId(),
                 request.getSearchIntent(),
                 com.project.ai.model.MessageRole.AI,
-                cleanAnswer,
+                summarized,
                 matchedProducts);
 
-        log.debug("[MemoryProcessor] Saving matchedProducts={}", result.getMatchedIds());
+        log.debug("[ArabicMemoryProcessor] Saving matchedProducts={}", result.getMatchedIds());
 
         log.info("[ArabicMemoryProcessor] saveToMemory END");
+    }
+
+    private String summarizeIfNeeded(String answer, String type) {
+        if (answer == null || answer.isBlank()) return "";
+
+        // listing types — already short, no summarization needed
+        if (Set.of("category", "brand", "price", "hybrid", "sort").contains(type)) {
+            return answer.length() > 300
+                    ? answer.substring(0, 300) + "..."
+                    : answer;
+        }
+
+        // knowledge, semantic, comparison — may be verbose, summarize
+        if (answer.length() > 300) {
+            log.info("[ArabicMemoryProcessor] summarizing answer length={} type={}",
+                    answer.length(), type);
+            return summarize(answer);
+        }
+
+        return answer;
+    }
+
+    private String summarize(String answer) {
+        try {
+            String prompt = """
+                Summarize this in 1-2 sentences, keeping key facts only.
+                Return ONLY the summary, nothing else.
+                
+                Text: %s
+                """.formatted(answer);
+
+            String summary = chatModel.chat(prompt).trim();
+            log.info("[ArabicMemoryProcessor] summarized {} → {} chars",
+                    answer.length(), summary.length());
+            return summary;
+
+        } catch (Exception e) {
+            log.warn("[ArabicMemoryProcessor] summarization failed — truncating: {}", e.getMessage());
+            return answer.substring(0, 300) + "...";
+        }
     }
 }

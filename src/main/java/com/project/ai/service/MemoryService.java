@@ -116,6 +116,26 @@ public class MemoryService {
                 LocalDateTime.now());
     }
 
+
+    public void saveMemory(final Long userId,
+                           final String searchType,
+                           final MessageRole role,
+                           final String query,
+                           final String[] matchIds) {
+
+        String vectorQuery = toVectorString(convertToVector(query));
+
+        log.info("[MemoryService] - Conversation memory for {} ", role.name());
+        memoryRepository.insertMemory(
+                userId,
+                role.name(),
+                query,
+                vectorQuery,
+                searchType,
+                matchIds,
+                LocalDateTime.now());
+    }
+
     private ConversationMemory buildConversationMemory(
             final Long userId,
             final SearchIntent searchIntent,

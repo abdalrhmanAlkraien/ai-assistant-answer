@@ -1,8 +1,11 @@
 package com.project.ai.service;
 
 import com.project.ai.agents.Language;
+import com.project.ai.config.PromptKeys;
+import com.project.ai.loader.PromptLoader;
 import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.SearchIntent;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
@@ -15,7 +18,10 @@ import java.util.stream.Collectors;
  */
 @Service
 @Log4j2
+@RequiredArgsConstructor
 public class SuggestionService {
+
+    private final PromptLoader promptLoader;
 
     public String suggestionProduct(final String question, final FilteredContext suggestContext, final Language language) {
 
@@ -26,54 +32,13 @@ public class SuggestionService {
                         + m.embedded().text())
                 .collect(Collectors.joining("\n"));
 
-        String suggestQuestion = "";
-        if (language.equals(Language.ENGLISH)) {
-            suggestQuestion = """
-                    You are a helpful e-commerce assistant.
-                    The user was looking for: "%s"
-                    But no exact matches were found in our catalog.
-                    
-                    STRICT RULES:
-                    - ONLY mention products from the list below — nothing else
-                    - NEVER invent products not in this list
-                    - Format response in a friendly helpful way
-                    - Explain why this is a good alternative
-                    - At the end list: "Product IDs: ..."
-                    
-                    Available alternatives:
-                    %s
-                    
-                    Write a friendly suggestion explaining why these products are good alternatives:
-                    """.formatted(question, productsContext);
-        } else {
+        String promptKey = language.equals(Language.ARABIC)
+                ? PromptKeys.SUGGESTION_ARABIC
+                : PromptKeys.SUGGESTION_ENGLISH;
 
-            suggestQuestion = """
-                    أنت مساعد تسوق إلكتروني مفيد.
-                    كان المستخدم يبحث عن: "%s"
-                    لكن لم يتم العثور على تطابق دقيق في كتالوجنا.
-                    
-                    القواعد الصارمة:
-                    - اذكر فقط المنتجات من القائمة أدناه — لا شيء غيرها
-                    - لا تخترع منتجات غير موجودة في هذه القائمة أبداً
-                    - اقترح فقط المنتجات ذات الصلة بما طلبه المستخدم
-                    - فضّل المنتجات الأقرب لنطاق سعر المستخدم الأصلي
-                    - إذا كان المنتج غير ذي صلة أو بعيداً جداً عن الميزانية، لا تذكره
-                    - نسّق الرد بطريقة ودية ومفيدة
-                    - اشرح لماذا هذا المنتج بديل جيد
-                    - في النهاية اذكر: "معرفات المنتجات: ..."
-                    
-                    البدائل المتاحة:
-                    %s
-                    
-                    اكتب اقتراحاً ودياً باللغة العربية يشرح لماذا هذه المنتجات بدائل جيدة:
-                    
-                    
-                   تذكر: الإجابة باللغة العربية فقط.
-                    
-                    """.formatted(question, productsContext);
-        }
+        String template = promptLoader.get(promptKey);
 
-        return suggestQuestion;
+        return template.formatted(question, productsContext);
     }
 
     public SearchIntent buildSuggestIntent(SearchIntent original) {

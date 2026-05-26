@@ -9,6 +9,5 @@ import com.project.ai.dto.SearchIntent;
  * @Time: 10:24 PM
  */
 public interface IntentAnalyzer {
-    AiResult<String> enrichWithMemory(String question, String memoryContext);
     AiResult<SearchIntent> extractIntent(String userQuestion);
 }

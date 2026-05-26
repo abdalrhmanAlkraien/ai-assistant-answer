@@ -27,4 +27,5 @@ public class MultimodalResponse {
     private Language language;
     private InputType inputType;
     private LocalDateTime responseTime;
+    private List<String> suggestedOptions;
 }

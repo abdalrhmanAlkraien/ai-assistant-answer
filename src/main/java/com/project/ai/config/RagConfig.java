@@ -5,6 +5,7 @@ import dev.langchain4j.data.document.parser.apache.pdfbox.ApachePdfBoxDocumentPa
 import dev.langchain4j.data.document.parser.apache.tika.ApacheTikaDocumentParser;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.segment.TextSegment;
+import dev.langchain4j.model.bedrock.BedrockChatModel;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.huggingface.HuggingFaceEmbeddingModel;
@@ -20,6 +21,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.web.client.RestTemplate;
+import software.amazon.awssdk.regions.Region;
 
 import java.time.Duration;
 import java.util.function.Supplier;
@@ -53,97 +55,39 @@ public class RagConfig {
                 .build();
     }
 
-    @Bean
-    public ChatModel chatModel() {
-
-        if(properties.getChatModel().getOllama().getApiKey() == null) {
-            log.info("Creating Ollama ChatModel --> {} | {}",
-                    properties.getChatModel().getOllama().getBaseUrl(),
-                    properties.getChatModel().getOllama().getModelName());
-
-            return OllamaChatModel.builder()
-                    .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
-                    .modelName(properties.getChatModel().getOllama().getModelName())
-                    .temperature(0.7)
-                    .timeout(Duration.ofMinutes(2))
-                    .build();
-        } else {
-            log.info("Creating NVIDIA ChatModel --> {} | {}",
-                    properties.getChatModel().getOllama().getBaseUrl(),
-                    properties.getChatModel().getOllama().getModelName());
-
-            return OpenAiChatModel.builder()
-                    .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
-                    .apiKey(properties.getChatModel().getOllama().getApiKey())
-                    .modelName(properties.getChatModel().getOllama().getModelName())
-                    .temperature(properties.getChatModel().getOllama().getTemperature())
-                    .timeout(properties.getChatModel().getOllama().getTimeout())
-                    .build();
-        }
-
-    }
+    // ── Keep existing ollama/nvidia beans ─────────────────────────────────────
 
     @Bean("englishChatModel")
     @Primary
-    public ChatModel englishChatModel(LangChain4jProperties properties) {
-
-        if(properties.getChatModel().getOllama().getApiKey() == null) {
-
-            log.info("Creating Ollama ChatModel --> {} | {}",
-                    properties.getChatModel().getOllama().getBaseUrl(),
-                    properties.getChatModel().getOllama().getModelName());
-
-            return OllamaChatModel.builder()
-                    .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
-                    .modelName(properties.getChatModel().getOllama().getEnglishModelName())
-                    .temperature(properties.getChatModel().getOllama().getTemperature())
-                    .timeout(Duration.ofMinutes(2))
-                    .build();
-        } else {
-
-            log.info("Creating NVIDIA ChatModel --> {} | {}",
-                    properties.getChatModel().getOllama().getBaseUrl(),
-                    properties.getChatModel().getOllama().getModelName());
-
-            return OpenAiChatModel.builder()
-                    .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
-                    .apiKey(properties.getChatModel().getOllama().getApiKey())
-                    .modelName(properties.getChatModel().getOllama().getEnglishModelName())
-                    .temperature(properties.getChatModel().getOllama().getTemperature())
-                    .timeout(properties.getChatModel().getOllama().getTimeout())
-                    .build();
-        }
+    public ChatModel englishChatModel() {
+        return buildModel("english");
     }
 
     @Bean("arabicChatModel")
-    public ChatModel arabicChatModel(LangChain4jProperties properties) {
+    public ChatModel arabicChatModel() {
+        return buildModel("arabic");
+    }
 
-        if(properties.getChatModel().getOllama().getApiKey() == null) {
+    @Bean
+    public ChatModel chatModel() {
+        return buildModel("powerful");
+    }
 
-            log.info("Creating Ollama ChatModel --> {} | {}",
-                    properties.getChatModel().getOllama().getBaseUrl(),
-                    properties.getChatModel().getOllama().getModelName());
+    // ── New planner model beans ───────────────────────────────────────────────
 
-            return OllamaChatModel.builder()
-                    .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
-                    .modelName(properties.getChatModel().getOllama().getArabicModelName())
-                    .temperature(properties.getChatModel().getOllama().getTemperature())
-                    .timeout(Duration.ofMinutes(2))
-                    .build();
-        } else {
+    @Bean("fastChatModel")
+    public ChatModel fastChatModel() {
+        return buildModel("fast");
+    }
 
-            log.info("Creating NVIDIA ChatModel --> {} | {}",
-                    properties.getChatModel().getOllama().getBaseUrl(),
-                    properties.getChatModel().getOllama().getModelName());
+    @Bean("mediumChatModel")
+    public ChatModel mediumChatModel() {
+        return buildModel("medium");
+    }
 
-            return OpenAiChatModel.builder()
-                    .baseUrl(properties.getChatModel().getOllama().getBaseUrl())
-                    .apiKey(properties.getChatModel().getOllama().getApiKey())
-                    .modelName(properties.getChatModel().getOllama().getArabicModelName())
-                    .temperature(properties.getChatModel().getOllama().getTemperature())
-                    .timeout(properties.getChatModel().getOllama().getTimeout())
-                    .build();
-        }
+    @Bean("powerfulChatModel")
+    public ChatModel powerfulChatModel() {
+        return buildModel("powerful");
     }
 
     @Bean
@@ -192,5 +136,50 @@ public class RagConfig {
     public ApachePdfBoxDocumentParser pdfParser() {
         log.info("Creating DocumentParser --> pdfParser: ApachePdfBoxDocumentParser");
         return new ApachePdfBoxDocumentParser();
+    }
+
+
+    public ChatModel buildModel(String modelKey) {
+        LangChain4jProperties.ChatModel chatConfig      = properties.getChatModel();
+        LangChain4jProperties.ChatModel.ModelConfig modelConfig = chatConfig.getModels().get(modelKey);
+
+        if (modelConfig == null) {
+            throw new IllegalArgumentException("Model config not found for key: " + modelKey);
+        }
+
+        LangChain4jProperties.ChatModel.ProviderConfig providerConfig =
+                chatConfig.getProviders().get(modelConfig.getProvider());
+
+        if (providerConfig == null) {
+            throw new IllegalArgumentException("Provider not found: " + modelConfig.getProvider());
+        }
+
+        log.info("[RagConfig] Building model key={} name={} provider={}",
+                modelKey, modelConfig.getModelName(), modelConfig.getProvider());
+
+        return switch (modelConfig.getProvider()) {
+            case "nvidia", "openai" -> OpenAiChatModel.builder()
+                    .baseUrl(providerConfig.getBaseUrl())
+                    .apiKey(providerConfig.getApiKey())
+                    .modelName(modelConfig.getModelName())
+                    .temperature(chatConfig.getTemperature())
+                    .maxCompletionTokens(modelConfig.getMaxTokens())
+                    .timeout(chatConfig.getTimeout())
+                    .build();
+
+            case "ollama" -> OllamaChatModel.builder()
+                    .baseUrl(providerConfig.getBaseUrl())
+                    .modelName(modelConfig.getModelName())
+                    .temperature(chatConfig.getTemperature())
+                    .timeout(chatConfig.getTimeout())
+                    .build();
+
+            case "bedrock" -> BedrockChatModel.builder()
+                    .region(Region.of(providerConfig.getRegion()))
+                    .modelId(modelConfig.getModelName())
+                    .build();
+
+            default -> throw new IllegalArgumentException("Unknown provider: " + modelConfig.getProvider());
+        };
     }
 }

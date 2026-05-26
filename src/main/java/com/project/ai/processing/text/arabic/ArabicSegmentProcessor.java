@@ -1,6 +1,8 @@
 package com.project.ai.processing.text.arabic;
 
 import com.project.ai.config.LangChain4jProperties;
+import com.project.ai.config.PromptKeys;
+import com.project.ai.loader.PromptLoader;
 import com.project.ai.dto.FilteredContext;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
@@ -53,6 +55,7 @@ public class ArabicSegmentProcessor implements ChatProcessor {
     private final ChatProcessor suggestionProcessor;
     private final SearchService searchService;
     private final LangChain4jProperties properties;
+    private final PromptLoader promptLoader;
 
     public ArabicSegmentProcessor(
             final EmbeddingStore<TextSegment> embeddingStore,
@@ -61,7 +64,8 @@ public class ArabicSegmentProcessor implements ChatProcessor {
             final MatchedIdsResolver matchedIdsResolver,
             final ArabicSuggestionProcessor suggestionProcessor,
             final SearchService searchService,
-            final LangChain4jProperties properties
+            final LangChain4jProperties properties,
+            final PromptLoader promptLoader
     ) {
         this.embeddingStore = embeddingStore;
         this.chatModel = chatModel;
@@ -70,6 +74,7 @@ public class ArabicSegmentProcessor implements ChatProcessor {
         this.suggestionProcessor = suggestionProcessor;
         this.searchService = searchService;
         this.properties = properties;
+        this.promptLoader = promptLoader;
     }
 
     @Override
@@ -136,125 +141,43 @@ public class ArabicSegmentProcessor implements ChatProcessor {
     }
 
 
-    private String buildPrompt(final SearchIntent intent,
-                               final FilteredContext filteredContext,
-                               final String userQuestion,
-                               final String memoryContext) {
 
-        String memorySection = memoryContext == null || memoryContext.isEmpty() ? "" : """
-                سجل المحادثة مع المستخدم:
-                %s
-                
-                """.formatted(memoryContext);
+    private String buildPrompt(SearchIntent intent, FilteredContext filteredContext,
+                               String userQuestion, String memoryContext) {
+
+        String memorySection = (memoryContext != null && !memoryContext.isEmpty()
+                && needsMemory(intent.getSearchType()))
+                ? "سجل المحادثة مع المستخدم:\n%s\n\n".formatted(memoryContext)
+                : "";
 
         String context = filteredContext.getContext();
         int count = filteredContext.getFilteredMatches().size();
 
+        String promptKey = resolvePromptKey(intent.getSearchType());
+        String template = promptLoader.get(promptKey);
 
-        String body = switch (intent.getSearchType()) {
+        return switch (intent.getSearchType()) {
 
-            case "price" -> """
-                مهمتك: سرد جميع المنتجات البالغ عددها %d ضمن النطاق السعري المطلوب.
-                لا تتخطَّ أي منتج. قام النظام بالتصفية مسبقًا.
-                
-                ابدأ ردك بـ: "إليك المنتجات ضمن النطاق السعري المطلوب:"
-                
-                المنتجات (%d منتج):
-                %s
-                
-                %s
-                اسرد جميع المنتجات بهذا التنسيق:
-                اسم المنتج - السعر - الفئة
-                
-                """.formatted(count, count, context, memorySection);
+            case "price" -> template.formatted(
+                    count, count, context, memorySection);
 
-            case "category" -> """
-                مهمتك: عرض المنتجات المرتبطة بـ "%s" فقط.
-                
-                القواعد:
-                - أدرج المنتجات التي فئتها أو وصفها مرتبط بـ "%s"
-                - استبعد المنتجات غير ذات الصلة تمامًا
-                - احتفظ بأسماء المنتجات والأسعار كما هي
-                
-                ابدأ ردك بـ: "إليك المنتجات المتاحة:"
-                
-                المنتجات:
-                %s
-                
-                %s
-                اسرد المنتجات ذات الصلة بهذا التنسيق:
-                اسم المنتج - السعر - الفئة
-                
-                """.formatted(
+            case "category" -> template.formatted(
                     intent.getCategory(), intent.getCategory(),
                     context, memorySection);
 
-            case "brand" -> """
-                مهمتك: عرض منتجات العلامات التجارية: "%s" فقط.
-                استبعد أي منتج ينتمي لعلامة تجارية مختلفة.
-                
-                ابدأ ردك بـ: "إليك منتجات العلامة التجارية المطلوبة:"
-                
-                المنتجات:
-                %s
-                
-                %s
-                اسرد المنتجات ذات الصلة بهذا التنسيق:
-                اسم المنتج - السعر - الفئة
-                
-                """.formatted(intent.getBrand(), context, memorySection);
+            case "brand" -> template.formatted(
+                    intent.getBrand(), context, memorySection);
 
-            case "hybrid" -> """
-                مهمتك: تصفية المنتجات وفق جميع هذه المعايير معًا:
-                %s%s%s
-                أدرج فقط المنتجات المطابقة لجميع المعايير.
-                
-                ابدأ ردك بـ: "إليك المنتجات المطابقة للمعايير:"
-                
-                المنتجات:
-                %s
-                
-                %s
-                اسرد المنتجات المطابقة بهذا التنسيق:
-                اسم المنتج - السعر - الفئة
-                
-                """.formatted(
+            case "hybrid" -> template.formatted(
                     intent.getMinPrice() != null ? "- السعر >= $" + intent.getMinPrice() + "\n" : "",
                     intent.getMaxPrice() != null ? "- السعر <= $" + intent.getMaxPrice() + "\n" : "",
                     intent.getBrand() != null ? "- العلامة التجارية: " + intent.getBrand() + "\n" : "",
                     context, memorySection);
 
-            case "comparison" -> """
-                مهمتك: مقارنة المنتجات أدناه والإجابة على سؤال المستخدم مباشرة.
-                كن مختصرًا — إجابة واضحة أو حدد الفائز.
-                في النهاية اذكر: "معرفات المنتجات: ..."
-                
-                المنتجات:
-                %s
-                
-                %s
-                سؤال المستخدم: %s
-                
-                الإجابة:
-                """.formatted(context, memorySection, userQuestion);
+            case "comparison" -> template.formatted(
+                    context, memorySection, userQuestion);
 
-            case "semantic" -> """
-                مهمتك: التوصية بالمنتجات المناسبة لطلب المستخدم.
-                طلب المستخدم: "%s"
-                %s%s
-                القواعد:
-                - أوصِ فقط بالمنتجات ذات الصلة بالطلب
-                - %s
-                - أعطِ الأولوية للأنسب للاستخدام وليس الأرخص
-                - اشرح بإيجاز لماذا يناسب كل منتج الطلب
-                - في النهاية اذكر: "معرفات المنتجات: ..."
-                
-                المنتجات:
-                %s
-                
-                %s
-                الإجابة:
-                """.formatted(
+            case "semantic" -> template.formatted(
                     intent.getSemanticQuery(),
                     intent.getMaxPrice() != null ? "- الحد الأقصى للسعر: $" + intent.getMaxPrice() + "\n" : "",
                     intent.getCategory() != null ? "- الفئة: " + intent.getCategory() + "\n" : "",
@@ -263,21 +186,30 @@ public class ArabicSegmentProcessor implements ChatProcessor {
                             : "لا يوجد قيد على السعر — أوصِ بأفضل منتج بغض النظر عن السعر",
                     context, memorySection);
 
-            default -> """
-                مهمتك: الإجابة على سؤال المستخدم بناءً على المنتجات أدناه فقط.
-                كن مختصرًا ومفيدًا.
-                في النهاية اذكر: "معرفات المنتجات: ..."
-                
-                المنتجات:
-                %s
-                
-                %s
-                سؤال المستخدم: %s
-                
-                الإجابة:
-                """.formatted(context, memorySection, userQuestion);
+            default -> {
+                log.warn("[ArabicSegmentProcessor] unexpected type='{}' — using default",
+                        intent.getSearchType());
+                yield template.formatted(context, memorySection, userQuestion);
+            }
         };
+    }
 
-        return LANGUAGE_SYSTEM_HEADER + body;
+    private String resolvePromptKey(String searchType) {
+        return switch (searchType) {
+            case "price"      -> PromptKeys.SEGMENT_ARABIC_PRICE;
+            case "category"   -> PromptKeys.SEGMENT_ARABIC_CATEGORY;
+            case "brand"      -> PromptKeys.SEGMENT_ARABIC_BRAND;
+            case "hybrid"     -> PromptKeys.SEGMENT_ARABIC_HYBRID;
+            case "comparison" -> PromptKeys.SEGMENT_ARABIC_COMPARISON;
+            case "semantic"   -> PromptKeys.SEGMENT_ARABIC_SEMANTIC;
+            default           -> PromptKeys.SEGMENT_ARABIC_DEFAULT;
+        };
+    }
+
+    private boolean needsMemory(String searchType) {
+        return switch (searchType) {
+            case "comparison", "semantic", "knowledge", "suggest" -> true;
+            default -> false;
+        };
     }
 }

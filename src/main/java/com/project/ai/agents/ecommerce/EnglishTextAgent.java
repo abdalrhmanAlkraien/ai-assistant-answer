@@ -1,5 +1,8 @@
-package com.project.ai.agents;
+package com.project.ai.agents.ecommerce;
 
+import com.project.ai.agents.AgentType;
+import com.project.ai.agents.Language;
+import com.project.ai.agents.MultimodalAgentStrategy;
 import com.project.ai.dto.InputType;
 import com.project.ai.dto.MultimodalRequest;
 import com.project.ai.dto.MultimodalResponse;
@@ -24,7 +27,7 @@ public class EnglishTextAgent implements MultimodalAgentStrategy {
     private final ProcessingOrchestrator orchestrator;
 
     public EnglishTextAgent(
-            @Qualifier("englishProcessingOrchestrator")
+            @Qualifier("ecommerceEnglishOrchestrator")
             ProcessingOrchestrator orchestrator) {
         this.orchestrator = orchestrator;
     }
@@ -38,13 +41,21 @@ public class EnglishTextAgent implements MultimodalAgentStrategy {
     @Override
     public MultimodalResponse process(MultimodalRequest request) {
 
-        log.info("[EnglishTextAgent] START — userId ={}, question={}", request.getUserId(), request.getTextQuestion());
+        log.info("[E-commerceEnglishTextAgent] START — userId ={}, question={}", request.getUserId(), request.getTextQuestion());
 
         ProcessingRequest processingRequest = ProcessingRequest.builder()
                 .userId(request.getUserId())
                 .rawQuestion(request.getTextQuestion())
+                .enrichedQuestion(request.getTextQuestion())  // already enriched by planner
                 .tokenTracker(request.getTokenTracker())
+                .memoryContext(request.getMemoryContext())
+                .enrichmentDone(true)   // skip re-enrichment in orchestrator
+                .intentDone(false)      // intent still needed in orchestrator
+                .searchIntent(request.getSearchIntent())              // ← add this
+                .relatedToPreviousContext(request.isRelatedToPreviousContext()) // ← add this
                 .build();
+
+        log.info("the memory is {}", request.getMemoryContext());
 
         ProcessingResult result = orchestrator.process(processingRequest);
 

@@ -1,154 +1,20 @@
 package com.project.ai.processing.text.arabic;
 
-import com.project.ai.config.LangChain4jProperties;
-import com.project.ai.dto.AiResult;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
-import com.project.ai.dto.SearchIntent;
-import com.project.ai.dto.TokenTracker;
-import com.project.ai.processing.ChatProcessor;
-import com.project.ai.processing.normalizer.CategoryNormalizer;
-import com.project.ai.processing.text.structure.IntentAnalyzer;
 import com.project.ai.processing.text.structure.ProcessingOrchestrator;
-import lombok.extern.log4j.Log4j2;
-import org.springframework.stereotype.Service;
 
 /**
  * @author: Abd-alrhman Alkraien.
  * @Date: 16/05/2026
  * @Time: 11:41 PM
  */
-@Service("arabicProcessingOrchestrator")
-@Log4j2
-public class ArabicProcessingOrchestrator implements ProcessingOrchestrator {
 
-    private final ArabicMemoryProcessor memoryProcessor;
-    private final IntentAnalyzer intentAnalyzer;
-
-    // Arabic processors
-    private final ChatProcessor knowledgeProcessor;
-    private final ChatProcessor segmentProcessor;
-    private final ChatProcessor sortProcessor;
-    private final ChatProcessor suggestionProcessor;
-    private final CategoryNormalizer categoryNormalizer;
-    private final LangChain4jProperties properties;
-
-    public ArabicProcessingOrchestrator(
-            final ArabicMemoryProcessor memoryProcessor,
-            final ArabicIntentAnalyzer intentAnalyzer,
-            final ArabicKnowledgeProcessor knowledgeProcessor,
-            final ArabicSegmentProcessor segmentProcessor,
-            final ArabicSortProcessor sortProcessor,
-            final ArabicSuggestionProcessor suggestionProcessor,
-            final CategoryNormalizer categoryNormalizer,
-            final LangChain4jProperties properties
-    ) {
-        this.memoryProcessor = memoryProcessor;
-        this.intentAnalyzer = intentAnalyzer;
-        this.knowledgeProcessor = knowledgeProcessor;
-        this.segmentProcessor = segmentProcessor;
-        this.sortProcessor = sortProcessor;
-        this.suggestionProcessor = suggestionProcessor;
-        this.categoryNormalizer = categoryNormalizer;
-        this.properties = properties;
-    }
+public interface ArabicProcessingOrchestrator extends ProcessingOrchestrator {
 
     @Override
-    public ProcessingResult process(ProcessingRequest request) {
-
-        log.info("[ArabicProcessingOrchestrator] START — userId={}, question='{}'",
-                request.getUserId(), request.getRawQuestion());
-
-        TokenTracker tracker = request.getTokenTracker();
-
-        memoryProcessor.prepareContext(request);
-
-        long intentStart = System.currentTimeMillis();
-        AiResult<SearchIntent> responseResult = intentAnalyzer.extractIntent(request.getEnrichedQuestion());
-        long intentDuration = System.currentTimeMillis() - intentStart;
-
-        tracker.record(
-                "arabic-intent-analysis",
-                properties.getChatModel().getOllama().getArabicModelName(),
-                responseResult.inputTokens(),
-                responseResult.outputTokens(),
-                intentDuration
-        );
-
-        SearchIntent intent = responseResult.result();
-        // Normalize category before any filtering
-        if (intent.getCategory() != null) {
-            String normalized = categoryNormalizer.normalize(intent.getCategory());
-            intent.setCategory(normalized);
-            log.info("[Orchestrator] Category normalized: '{}' → '{}'",
-                    intent.getCategory(), normalized);
-        }
-
-        log.info("[ArabicProcessingOrchestrator] Parsed intent — type={}, category={}, brand={}, " +
-                        "minPrice={}, maxPrice={}, sortDirection={}, semantic='{}', arabicSemantic = {}",
-                intent.getSearchType(), intent.getCategory(), intent.getBrand(),
-                intent.getMinPrice(), intent.getMaxPrice(),
-                intent.getSortDirection(), intent.getSemanticQuery(), intent.getSemanticQueryArabic());
-
-        if (intent.getSemanticQuery() == null || intent.getSemanticQuery().isBlank()) {
-            intent.setSemanticQuery(request.getEnrichedQuestion());
-        }
-
-        request.setSearchIntent(intent);
-
-        ProcessingResult result = route(request);
-
-        log.info("[ArabicProcessingOrchestrator] Result — type={}, matchedIds={}, answerLength={}",
-                result.getType(), result.getMatchedIds().size(),
-                result.getAnswer() != null ? result.getAnswer().length() : 0);
-
-        memoryProcessor.saveToMemory(request, result);
-
-        log.info("[ArabicProcessingOrchestrator] END — userId={}", request.getUserId());
-
-        return result;
-    }
+    ProcessingResult process(final ProcessingRequest request);
 
     @Override
-    public ProcessingResult route(ProcessingRequest request) {
-
-        String type = request.getSearchIntent().getSearchType();
-
-        log.info("[ArabicProcessingOrchestrator] Start Routing process");
-
-        // knowledge — no vector search needed
-        if (knowledgeProcessor.supports(type)) {
-
-            log.info("[ArabicProcessingOrchestrator] Routing to processor — type={}", type);
-            return knowledgeProcessor.process(request);
-        }
-
-        // suggest — direct path (user explicitly asked for suggestions)
-        if (suggestionProcessor.supports(type)) {
-
-            log.info("[ArabicProcessingOrchestrator] Routing to processor — type={}", type);
-            return suggestionProcessor.process(request);
-        }
-
-        if (sortProcessor.supports(type)) {
-            return sortProcessor.process(request);
-        }
-
-        // all other types — try segment first
-        if (segmentProcessor.supports(type)) {
-            log.info("[ArabicProcessingOrchestrator] Routing to processor — type={}", type);
-            ProcessingResult result = segmentProcessor.process(request);
-
-            // if segment found nothing → orchestrator decides to fallback
-            if (result.getMatchedIds().isEmpty()) {
-                log.info("[ArabicProcessingOrchestrator] SegmentProcessor returned empty — orchestrator falling back to SuggestionProcessor");
-                log.info("[ArabicProcessingOrchestrator] Routing to processor — type={}", type);
-                return suggestionProcessor.process(request);
-            }
-
-            return result;
-        }
-
-        throw new IllegalStateException("No processor found for type: " + type);
-    }
+    ProcessingResult route(ProcessingRequest request);
 }

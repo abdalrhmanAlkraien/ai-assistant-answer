@@ -32,4 +32,8 @@ public class ProcessingRequest {
     private List<EmbeddingMatch<TextSegment>> vectorMatches;
     private List<EmbeddingMatch<TextSegment>> lastFilteredMatches;
     private TokenTracker tokenTracker;
+
+    private boolean enrichmentDone;    // ← skip prepareContext if true
+    private boolean intentDone;        // ← skip extractIntent if true
+    private boolean relatedToPreviousContext;
 }

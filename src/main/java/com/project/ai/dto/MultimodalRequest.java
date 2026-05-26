@@ -1,6 +1,7 @@
 package com.project.ai.dto;
 
 import com.project.ai.agents.Language;
+import com.project.ai.model.planner.ExecutionPlan;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,4 +27,10 @@ public class MultimodalRequest {
     private String normalizedText;      // set by InputProcessor
     private InputType inputType;        // TEXT, VOICE, IMAGE, IMAGE_WITH_TEXT
     private TokenTracker tokenTracker;
+    private ExecutionPlan executionPlan;  // ← add this
+    private String memoryContext;
+    private String enrichedQuestion;    // ← add this: resolved with memory context
+    private boolean relatedToPreviousContext;    // ← NEW
+    private SearchIntent searchIntent;
+
 }

@@ -1,6 +1,8 @@
 package com.project.ai.processing.text.english;
 
 import com.project.ai.config.LangChain4jProperties;
+import com.project.ai.config.PromptKeys;
+import com.project.ai.loader.PromptLoader;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.TokenTracker;
@@ -8,6 +10,7 @@ import com.project.ai.processing.ChatProcessor;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.response.ChatResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -21,17 +24,13 @@ import java.util.List;
  */
 @Service
 @Log4j2
+@RequiredArgsConstructor
 public class EnglishKnowledgeProcessor implements ChatProcessor {
 
+    @Qualifier("englishChatModel")
     private final ChatModel chatModel;
     private final LangChain4jProperties properties;
-
-    public EnglishKnowledgeProcessor(
-            @Qualifier("englishChatModel") final ChatModel chatModel,
-            final LangChain4jProperties properties) {
-        this.chatModel = chatModel;
-        this.properties = properties;
-    }
+    private final PromptLoader promptLoader;
 
     @Override
     public boolean supports(String searchType) {
@@ -46,15 +45,13 @@ public class EnglishKnowledgeProcessor implements ChatProcessor {
 
         long intentStart = System.currentTimeMillis();
 
-        String question = """
-                You are a helpful assistant.
-                Answer this question based on your knowledge.
-                Be concise and helpful.
-                
-                Question: %s
-                """.formatted(request.getRawQuestion());
+        String promptTemplate = promptLoader.get(PromptKeys.KNOWLEDGE_ENGLISH);
+        String prompt = promptTemplate.formatted(
+                request.getMemoryContext() == null ? "" : request.getMemoryContext(),
+                request.getEnrichedQuestion()
+        );
 
-        ChatResponse answer = chatModel.chat(UserMessage.from(question));
+        ChatResponse answer = chatModel.chat(UserMessage.from(prompt));
 
         long intentDuration = System.currentTimeMillis() - intentStart;
 

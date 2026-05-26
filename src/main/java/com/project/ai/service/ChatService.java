@@ -21,25 +21,21 @@ import org.springframework.stereotype.Service;
 @Log4j2
 public class ChatService {
 
-    private final MultiAgentCoordinator multiAgentCoordinator;
     private final InputProcessor inputProcessor;
     private final TokenTrackerFactory trackerFactory;
-    private final TokenTrackerService tokenTrackerService;
-
+    private final PlannerService plannerService;
     public MultimodalResponse chat(final Long userId, final ChatRequest chatRequest) {
 
         log.info("[ChatService] START — userId ={}, question={}", userId, chatRequest.getQuestion());
 
         TokenTracker tracker = trackerFactory.create(
                 String.valueOf(userId),
-                "moonshotai/kimi-k2.6", // TODO should be dynamic
+                "moonshotai/kimi-k2.6",
                 chatRequest.getQuestion()
         );
 
         MultimodalRequest multimodalRequest = inputProcessor.process(userId, chatRequest);
         multimodalRequest.setTokenTracker(tracker);
-        MultimodalResponse response = multiAgentCoordinator.process(multimodalRequest);
-        tokenTrackerService.persist(tracker);
-        return response;
+        return plannerService.plan(multimodalRequest);
     }
 }
