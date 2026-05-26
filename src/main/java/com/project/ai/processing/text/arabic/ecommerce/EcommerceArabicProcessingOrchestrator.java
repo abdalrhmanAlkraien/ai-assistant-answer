@@ -131,7 +131,9 @@ public class EcommerceArabicProcessingOrchestrator implements ArabicProcessingOr
                 result.getType(), result.getMatchedIds().size(),
                 result.getAnswer() != null ? result.getAnswer().length() : 0);
 
-        memoryProcessor.saveToMemory(request, result);
+        if (!request.isParallelStep()) {
+            memoryProcessor.saveToMemory(request, result);
+        }
 
         log.info("[ArabicProcessingOrchestrator] END — userId={}", request.getUserId());
 

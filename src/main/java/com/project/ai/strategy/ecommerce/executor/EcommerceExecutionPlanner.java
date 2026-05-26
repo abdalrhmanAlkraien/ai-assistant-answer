@@ -40,10 +40,11 @@ import java.util.List;
 public class EcommerceExecutionPlanner implements ExecutionPlanner {
 
     private final EcommerceContextBuilder ecommerceContextBuilder;
-    @Qualifier("fastChatModel")
+    @Qualifier("analyzerChatModel")
     private final ChatModel fastChatModel;
     private final LangChain4jProperties properties;
     private final PromptLoader promptLoader;
+
 
 
     @Override
@@ -90,13 +91,20 @@ public class EcommerceExecutionPlanner implements ExecutionPlanner {
 
         tracker.record(
                 "execution-planner",
-                properties.getChatModel().getModels().get("fast").getModelName(),
+                properties.getChatModel().getModels().get("analyzer").getModelName(),
                 response.tokenUsage().inputTokenCount(),
                 response.tokenUsage().outputTokenCount(),
                 duration
         );
 
-        String json = response.aiMessage().text()
+
+        String rawText = response.aiMessage().text();
+        if (rawText == null || rawText.isBlank()) {
+            log.warn("[ExecutionPlanner] null response — using fallback");
+            return fallbackPlan(enrichedQuestion, request.getDetectedLanguage());
+        }
+
+        String json = rawText
                 .replaceAll("```json", "")
                 .replaceAll("```", "")
                 .trim();
@@ -142,6 +150,8 @@ public class EcommerceExecutionPlanner implements ExecutionPlanner {
                 .dependsOnStepId(s.get("dependsOnStepId").isNull()
                         ? null : s.get("dependsOnStepId").asText())
                 .parameters(new HashMap<>())
+                .category(getTextOrNull(s, "category"))   // ← add
+                .brand(getTextOrNull(s, "brand"))          // ← add
                 .build()));
 
         ClarificationContext clarificationContext = requiresClarification
@@ -209,5 +219,15 @@ public class EcommerceExecutionPlanner implements ExecutionPlanner {
             case "powerful" -> 3;
             default -> 0;
         };
+    }
+
+    private String getTextOrNull(JsonNode node, String field) {
+        JsonNode n = node.get(field);
+        return (n == null || n.isNull()) ? null : n.asText();
+    }
+
+    private Double getDoubleOrNull(JsonNode node, String field) {
+        JsonNode n = node.get(field);
+        return (n == null || n.isNull()) ? null : n.asDouble();
     }
 }

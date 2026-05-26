@@ -1,11 +1,8 @@
 package com.project.ai.service;
 
-import com.project.ai.dto.InputType;
 import com.project.ai.dto.MultimodalRequest;
 import com.project.ai.dto.MultimodalResponse;
 import com.project.ai.dto.SearchIntent;
-import com.project.ai.model.planner.IntentType;
-import com.project.ai.model.planner.PlanResult;
 import com.project.ai.model.planner.RequestAnalysis;
 import com.project.ai.processing.planner.PlannerMemoryProcessor;
 import com.project.ai.processing.planner.RequestAnalyzer;
@@ -13,9 +10,6 @@ import com.project.ai.strategy.BusinessStrategyLoader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * @author: Abd-alrhman Alkraien.
@@ -36,6 +30,7 @@ public class PlannerService {
 
         log.info("[PlannerService] START — userId={} question='{}'",
                 request.getUserId(), request.getTextQuestion());
+        String originalQuestion = request.getTextQuestion();  // ← save FIRST
 
         try {
 
@@ -46,6 +41,7 @@ public class PlannerService {
 
             // Step 2 — enrich + analyze + tier in ONE LLM call
             RequestAnalysis analysis = requestAnalyzer.analyze(request, memoryContext); // TODO handle it to avoid NPE
+
             log.info("[PlannerService] analysis — enriched='{}' complexity={} multiStep={} ambiguous={}",
                     analysis.getEnrichedQuestion(),
                     analysis.getComplexity(),
@@ -60,6 +56,8 @@ public class PlannerService {
 
 
             MultimodalResponse result = strategyLoader.getActive().handle(analysis, request);
+
+            result.setQuestion(originalQuestion);  // ← add this line
 
             // Step 5 — persist token usage
             tokenTrackerService.persist(request.getTokenTracker());

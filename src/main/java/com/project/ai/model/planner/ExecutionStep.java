@@ -24,4 +24,6 @@ public class ExecutionStep {
     private final boolean canRunParallel;
     private final String dependsOnStepId;   // null if no dependency
     private final Map<String, Object> parameters;
+    private String category;    // ← add
+    private String brand;       // ← add
 }

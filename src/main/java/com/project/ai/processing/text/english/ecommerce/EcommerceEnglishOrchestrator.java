@@ -89,7 +89,9 @@ public class EcommerceEnglishOrchestrator implements EnglishProcessingOrchestrat
                 result.getType(), result.getMatchedIds().size(),
                 result.getAnswer() != null ? result.getAnswer().length() : 0);
 
-        englishMemoryProcessor.saveToMemory(request, result);
+        if (!request.isParallelStep()) {
+            englishMemoryProcessor.saveToMemory(request, result);
+        }
 
         log.info("[EcommerceEnglishOrchestrator] END — userId={}", request.getUserId());
         return result;

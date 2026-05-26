@@ -51,6 +51,7 @@ public class ArabicTextAgent implements MultimodalAgentStrategy {
                 .intentDone(false)      // intent still needed in orchestrator
                 .searchIntent(request.getSearchIntent())              // ← add this
                 .relatedToPreviousContext(request.isRelatedToPreviousContext()) // ← add this
+                .parallelStep(request.isParallelStep())    // ← add this
                 .build();
 
         log.info("the memory is {}", request.getMemoryContext());

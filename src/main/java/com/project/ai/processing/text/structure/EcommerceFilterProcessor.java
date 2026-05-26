@@ -91,11 +91,7 @@ public class EcommerceFilterProcessor {
 
     private FilteredContext buildContext(List<Product> products) {
         String context = products.stream()
-                .map(p -> "[" + p.getProductId() + "] "
-                        + "Title: " + p.getTitle()
-                        + " Category: " + p.getCategory()
-                        + " Price: " + p.getPrice() + " USD"
-                        + " Description: " + p.getDescription())
+                .map(p -> p.getTitle() + " - $" + p.getPrice() + " - " + p.getCategory())
                 .collect(Collectors.joining("\n"));
 
         return FilteredContext.builder()

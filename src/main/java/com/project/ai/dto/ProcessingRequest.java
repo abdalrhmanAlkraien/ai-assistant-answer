@@ -36,4 +36,5 @@ public class ProcessingRequest {
     private boolean enrichmentDone;    // ← skip prepareContext if true
     private boolean intentDone;        // ← skip extractIntent if true
     private boolean relatedToPreviousContext;
+    private boolean parallelStep;
 }

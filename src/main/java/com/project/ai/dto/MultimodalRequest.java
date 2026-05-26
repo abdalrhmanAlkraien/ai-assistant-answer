@@ -32,5 +32,5 @@ public class MultimodalRequest {
     private String enrichedQuestion;    // ← add this: resolved with memory context
     private boolean relatedToPreviousContext;    // ← NEW
     private SearchIntent searchIntent;
-
+    private boolean parallelStep;
 }

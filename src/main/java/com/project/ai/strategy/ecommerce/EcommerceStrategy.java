@@ -80,7 +80,7 @@ public class EcommerceStrategy implements BusinessStrategy {
         return MultimodalResponse.builder()
                 .type("clarification")
                 .answer(context.getClarificationQuestion())
-                .suggestedOptions(context.getSuggestedOptions())
+                .suggestedOptions(context.getSuggestedOptions().isEmpty() ? List.of() : context.getSuggestedOptions())
                 .matchProducts(List.of())
                 .language(request.getDetectedLanguage())
                 .inputType(request.getInputType())

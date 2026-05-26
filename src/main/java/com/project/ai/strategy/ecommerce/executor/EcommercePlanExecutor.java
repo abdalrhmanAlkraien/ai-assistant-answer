@@ -4,13 +4,15 @@ import com.project.ai.agents.Language;
 import com.project.ai.agents.MultiAgentCoordinator;
 import com.project.ai.dto.MultimodalRequest;
 import com.project.ai.dto.MultimodalResponse;
+import com.project.ai.dto.SearchIntent;
 import com.project.ai.dto.TokenTracker;
-import com.project.ai.model.planner.ClarificationContext;
+import com.project.ai.model.MessageRole;
 import com.project.ai.model.planner.ExecutionPlan;
 import com.project.ai.model.planner.ExecutionStep;
+import com.project.ai.model.planner.IntentType;
 import com.project.ai.model.planner.PlanResult;
-import com.project.ai.processing.planner.AmbiguityResolver;
 import com.project.ai.processing.planner.PlanExecutor;
+import com.project.ai.service.MemoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -34,13 +36,14 @@ import java.util.stream.Collectors;
 public class EcommercePlanExecutor implements PlanExecutor {
 
     private final MultiAgentCoordinator coordinator;
+    private final MemoryService memoryService;
 
     private static final int THREAD_POOL_SIZE = 4;
     private final ExecutorService parallelExecutor =
             Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
     public MultimodalResponse execute(ExecutionPlan plan,
-                              MultimodalRequest request) {
+                                      MultimodalRequest request) {
 
         TokenTracker tracker = request.getTokenTracker();
         log.info("[PlanExecutor] START — steps={} parallel={} clarification={}",
@@ -71,7 +74,10 @@ public class EcommercePlanExecutor implements PlanExecutor {
                 final int delay = i * 1000; // stagger by 1 second each
                 futures.add(CompletableFuture.supplyAsync(() -> {
                     if (delay > 0) {
-                        try { Thread.sleep(delay); } catch (InterruptedException ignored) {}
+                        try {
+                            Thread.sleep(delay);
+                        } catch (InterruptedException ignored) {
+                        }
                     }
                     return executeStep(step, request, tracker, null);
                 }, parallelExecutor).exceptionally(ex -> {
@@ -132,6 +138,7 @@ public class EcommercePlanExecutor implements PlanExecutor {
         // ── Merge results ─────────────────────────────────────────────────────
         PlanResult planResult = mergeResults(results, plan, stepsExecuted, fallbackUsed);
 
+        saveMemory(request, planResult);
         log.info("[PlanExecutor] END — stepsExecuted={} fallback={} matchedIds={}",
                 stepsExecuted, fallbackUsed, planResult.getMatchedIds().size());
 
@@ -208,6 +215,7 @@ public class EcommercePlanExecutor implements PlanExecutor {
         stepRequest.setImageMediaType(original.getImageMediaType());
         stepRequest.setMemoryContext(original.getMemoryContext());
         stepRequest.setExecutionPlan(null);    // ← move here from executeStep
+        stepRequest.setParallelStep(step.isCanRunParallel());  // ← add this
 
         // use step goal if available, otherwise fall back to original question
         String question = (step.getGoal() != null && !step.getGoal().isBlank())
@@ -224,6 +232,15 @@ public class EcommercePlanExecutor implements PlanExecutor {
 
         stepRequest.setTextQuestion(question);
         stepRequest.setNormalizedText(question);
+
+        SearchIntent stepIntent = SearchIntent.builder()
+                .searchType(resolveSearchTypeFromIntent(step.getIntentType()))
+                .semanticQuery(question)
+                .category(step.getCategory())
+                .brand(step.getBrand())
+                .build();
+
+        stepRequest.setSearchIntent(stepIntent);
 
         return stepRequest;
     }
@@ -309,6 +326,41 @@ public class EcommercePlanExecutor implements PlanExecutor {
                 .build();
     }
 
+    private void saveMemory(MultimodalRequest request, PlanResult planResult) {
+        try {
+            String[] matchedIds = planResult.getMatchedIds() != null
+                    ? planResult.getMatchedIds().toArray(String[]::new)
+                    : new String[0];
+
+            // save user question
+            memoryService.saveMemory(
+                    request.getUserId(),
+                    planResult.getType(),
+                    MessageRole.USER,
+                    request.getTextQuestion(),
+                    matchedIds);
+
+            // save AI answer — summarize if long
+            String answer = planResult.getAnswer();
+            if (answer != null && answer.length() > 300) {
+                answer = answer.substring(0, 300) + "...";
+            }
+
+            memoryService.saveMemory(
+                    request.getUserId(),
+                    planResult.getType(),
+                    MessageRole.AI,
+                    answer,
+                    matchedIds);
+
+            log.info("[PlanExecutor] memory saved — userId={} type={} matchedIds={}",
+                    request.getUserId(), planResult.getType(), matchedIds.length);
+
+        } catch (Exception e) {
+            log.warn("[PlanExecutor] failed to save memory: {}", e.getMessage());
+        }
+    }
+
     private String cleanType(String type) {
         if (type == null) return "unknown";
         if (type.contains("+")) return "multi";
@@ -322,6 +374,20 @@ public class EcommercePlanExecutor implements PlanExecutor {
             case "medium" -> "powerful";
             case "powerful" -> null;  // no fallback — already at max
             default -> "fast";
+        };
+    }
+
+    private String resolveSearchTypeFromIntent(IntentType intentType) {
+        return switch (intentType) {
+            case SEARCH -> "category";
+            case FILTER -> "hybrid";
+            case SORT -> "sort";
+            case PRICE -> "price";
+            case SEMANTIC, RECOMMENDATION -> "semantic";
+            case COMPARISON -> "comparison";
+            case KNOWLEDGE -> "knowledge";
+            case SUGGESTION -> "suggest";
+            default -> "category";
         };
     }
 }
