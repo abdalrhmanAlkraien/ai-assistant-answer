@@ -53,12 +53,22 @@ public class RequestAnalyzer {
                 ? "No previous conversation."
                 : memoryContext;
 
-        String promptTemplate = promptLoader.get(PromptKeys.REQUEST_ANALYZER);
+        String promptKey = language == Language.ARABIC
+                ? PromptKeys.REQUEST_ANALYZER_ARABIC
+                : PromptKeys.REQUEST_ANALYZER_ENGLISH;
+
+        String promptTemplate = promptLoader.get(promptKey);
         String prompt = promptTemplate.formatted(memorySection, rawQuestion);
 
         long start = System.currentTimeMillis();
         ChatResponse response = chatModel.chat(UserMessage.from(prompt));
         long duration = System.currentTimeMillis() - start;
+
+        // ← add null check here
+        log.info("[RequestAnalyzer] raw response: {}", response);
+        log.info("[RequestAnalyzer] aiMessage: {}", response.aiMessage());
+        log.info("[RequestAnalyzer] contents: {}", response.aiMessage().text());
+        log.info("[RequestAnalyzer] contents: {}", response.aiMessage().attributes());
 
         String json = response.aiMessage().text()
                 .replaceAll("```json", "")

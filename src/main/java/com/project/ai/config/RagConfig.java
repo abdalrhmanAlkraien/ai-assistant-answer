@@ -57,6 +57,11 @@ public class RagConfig {
 
     // ── Keep existing ollama/nvidia beans ─────────────────────────────────────
 
+    @Bean("analyzerChatModel")
+    public ChatModel analyzerChatModel() {
+        return buildModel("analyzer");
+    }
+
     @Bean("englishChatModel")
     @Primary
     public ChatModel englishChatModel() {
@@ -158,13 +163,15 @@ public class RagConfig {
                 modelKey, modelConfig.getModelName(), modelConfig.getProvider());
 
         return switch (modelConfig.getProvider()) {
-            case "nvidia", "openai" -> OpenAiChatModel.builder()
+            case "nvidia", "openai", "qubrid" -> OpenAiChatModel.builder()
                     .baseUrl(providerConfig.getBaseUrl())
                     .apiKey(providerConfig.getApiKey())
                     .modelName(modelConfig.getModelName())
                     .temperature(chatConfig.getTemperature())
                     .maxCompletionTokens(modelConfig.getMaxTokens())
                     .timeout(chatConfig.getTimeout())
+                    .returnThinking(false)    // ← don't return thinking tokens in response
+                    .sendThinking(false)      // ← don't send thinking field in request
                     .build();
 
             case "ollama" -> OllamaChatModel.builder()
@@ -172,11 +179,14 @@ public class RagConfig {
                     .modelName(modelConfig.getModelName())
                     .temperature(chatConfig.getTemperature())
                     .timeout(chatConfig.getTimeout())
+                    .returnThinking(false)    // ← don't return thinking tokens in response
                     .build();
 
             case "bedrock" -> BedrockChatModel.builder()
                     .region(Region.of(providerConfig.getRegion()))
                     .modelId(modelConfig.getModelName())
+                    .returnThinking(false)    // ← don't return thinking tokens in response
+                    .sendThinking(false)      // ← don't send thinking field in request
                     .build();
 
             default -> throw new IllegalArgumentException("Unknown provider: " + modelConfig.getProvider());

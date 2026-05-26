@@ -7,6 +7,8 @@ package com.project.ai.config;
  */
 public final class PromptKeys {
     public static final String REQUEST_ANALYZER   = "request_analyzer";
+    public static final String REQUEST_ANALYZER_ENGLISH = "request_analyzer_english";
+    public static final String REQUEST_ANALYZER_ARABIC  = "request_analyzer_arabic";
     public static final String EXECUTION_PLANNER  = "execution_planner";
     public static final String MEMORY_ENRICHER    = "memory_enricher";
     public static final String SEGMENT_ENGLISH    = "segment_english";

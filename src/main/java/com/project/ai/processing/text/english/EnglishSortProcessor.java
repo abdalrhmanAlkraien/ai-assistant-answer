@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 @Log4j2
 public class EnglishSortProcessor implements ChatProcessor {
 
-    private ProductRepository productRepository;
+    private final ProductRepository productRepository;
 
     @Override
     public boolean supports(String searchType) {

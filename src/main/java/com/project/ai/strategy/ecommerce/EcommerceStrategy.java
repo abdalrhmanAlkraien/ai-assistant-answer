@@ -71,8 +71,7 @@ public class EcommerceStrategy implements BusinessStrategy {
     }
 
     private boolean isComplexPlan(RequestAnalysis analysis) {
-        return analysis.isMultiStep()
-                || analysis.getComplexity() == ComplexityLevel.COMPLEX;
+        return analysis.isMultiStep();
     }
 
     private MultimodalResponse handleClarification(MultimodalRequest request) {
