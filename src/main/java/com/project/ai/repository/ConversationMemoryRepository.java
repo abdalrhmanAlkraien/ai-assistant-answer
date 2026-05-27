@@ -1,6 +1,8 @@
 package com.project.ai.repository;
 
 import com.project.ai.model.ConversationMemory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -78,4 +80,28 @@ public interface ConversationMemoryRepository extends JpaRepository<Conversation
             @Param("matchedProducts") String[] matchedProducts,
             @Param("createdAt") LocalDateTime createdAt
     );
+
+    @Query("SELECT cm.userId, COUNT(cm.id) as messageCount, MAX(cm.createdAt) as lastActivity " +
+            "FROM ConversationMemory cm GROUP BY cm.userId ORDER BY MAX(cm.createdAt) DESC")
+    Page<Object[]> findAllUsersWithStats(Pageable pageable);
+
+    Page<ConversationMemory> findByUserIdOrderByCreatedAtAsc(Long userId, Pageable pageable);
+
+
+    @Modifying
+    @Query("DELETE FROM ConversationMemory cm WHERE cm.userId = :userId AND cm.id IN :ids")
+    void deleteByUserIdAndIdIn(@Param("userId") Long userId, @Param("ids") List<Long> ids);
+
+    @Modifying
+    @Query("DELETE FROM ConversationMemory cm WHERE cm.userId = :userId")
+    void deleteAllByUserId(@Param("userId") Long userId);
+
+    boolean existsByUserId(Long userId);
+
+    List<ConversationMemory> findByUserIdAndIdIn(Long userId, List<Long> ids);
+
+    @Query("SELECT COUNT(DISTINCT cm.userId) FROM ConversationMemory cm")
+    Long countDistinctUsers();
+
+    Long countBy();
 }
