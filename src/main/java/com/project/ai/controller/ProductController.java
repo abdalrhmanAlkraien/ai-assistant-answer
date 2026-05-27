@@ -1,6 +1,7 @@
 package com.project.ai.controller;
 
 import com.project.ai.dto.ProductRequest;
+import com.project.ai.dto.ProductUpdateRequest;
 import com.project.ai.model.Product;
 import com.project.ai.service.ProductService;
 import jakarta.validation.Valid;
@@ -61,6 +62,12 @@ public class ProductController {
             @RequestBody @Valid ProductRequest request
     ) {
         return ResponseEntity.ok(productService.update(productId, request));
+    }
+
+    @PutMapping("/batch")
+    public ResponseEntity<List<Product>> updateProducts(
+            @RequestBody List<ProductUpdateRequest> requests) {
+        return ResponseEntity.ok(productService.updateProducts(requests));
     }
 
     @DeleteMapping("/{productId}")

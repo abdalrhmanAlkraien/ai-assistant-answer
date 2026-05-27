@@ -1,6 +1,7 @@
 package com.project.ai.service;
 
 import com.project.ai.dto.ProductRequest;
+import com.project.ai.dto.ProductUpdateRequest;
 import com.project.ai.model.Product;
 import com.project.ai.strategy.ecommerce.executor.EcommerceContextBuilder;
 import com.project.ai.repository.ProductRepository;
@@ -107,5 +108,27 @@ public class ProductService {
     @Transactional(readOnly = true)
     public Page<Product> findAll(Pageable pageable) {
         return productRepository.findAll(pageable);
+    }
+
+    @Transactional
+    public List<Product> updateProducts(List<ProductUpdateRequest> requests) {
+        return requests.stream()
+                .map(req -> {
+                    Product product = productRepository.findById(req.getProductId())
+                            .orElseThrow(() -> new IllegalArgumentException(
+                                    "Product not found: " + req.getProductId()));
+
+                    if (req.getTitle() != null)       product.setTitle(req.getTitle());
+                    if (req.getCategory() != null)    product.setCategory(req.getCategory());
+                    if (req.getBrand() != null)        product.setBrand(req.getBrand());
+                    if (req.getPrice() != null)        product.setPrice(req.getPrice());
+                    if (req.getCurrency() != null)     product.setCurrency(req.getCurrency());
+                    if (req.getDescription() != null)  product.setDescription(req.getDescription());
+                    if (req.getImageUrl() != null)     product.setImageUrl(req.getImageUrl());
+                    if (req.getActive() != null)       product.setActive(req.getActive());
+
+                    return productRepository.save(product);
+                })
+                .toList();
     }
 }

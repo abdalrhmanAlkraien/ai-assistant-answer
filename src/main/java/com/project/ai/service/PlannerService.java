@@ -2,6 +2,7 @@ package com.project.ai.service;
 
 import com.project.ai.dto.MultimodalRequest;
 import com.project.ai.dto.MultimodalResponse;
+import com.project.ai.dto.ProductSummary;
 import com.project.ai.dto.SearchIntent;
 import com.project.ai.model.planner.RequestAnalysis;
 import com.project.ai.processing.planner.PlannerMemoryProcessor;
@@ -10,6 +11,8 @@ import com.project.ai.strategy.BusinessStrategyLoader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 /**
  * @author: Abd-alrhman Alkraien.
@@ -25,6 +28,7 @@ public class PlannerService {
     private final TokenTrackerService tokenTrackerService;
     private final PlannerMemoryProcessor plannerMemoryProcessor;
     private final BusinessStrategyLoader strategyLoader;
+    private final ProductEnrichmentService enrichmentService;
 
     public MultimodalResponse plan(MultimodalRequest request) {
 
@@ -56,6 +60,8 @@ public class PlannerService {
 
 
             MultimodalResponse result = strategyLoader.getActive().handle(analysis, request);
+            List<ProductSummary> enriched = enrichmentService.enrich(result.getMatchProducts());
+            result.setProducts(enriched);
 
             result.setQuestion(originalQuestion);  // ← add this line
 

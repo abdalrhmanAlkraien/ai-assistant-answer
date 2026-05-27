@@ -65,4 +65,7 @@ public interface ProductRepository extends JpaRepository<Product, String> {
             @Param("brand") String brand,
             @Param("min") Double min,
             @Param("max") Double max);
+
+    @Query("SELECT p FROM Product p WHERE p.active = true AND p.productId IN :ids")
+    List<Product> findActiveByProductIds(@Param("ids") List<String> ids);
 }

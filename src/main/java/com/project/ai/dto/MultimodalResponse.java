@@ -1,5 +1,6 @@
 package com.project.ai.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.project.ai.agents.Language;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,7 +24,9 @@ public class MultimodalResponse {
     private String question;
     private String type;
     private String answer;
-    private List<String> matchProducts;
+    private List<ProductSummary> products;
+    @JsonIgnore
+    private List<String> matchProducts;             // ← internal use only
     private Language language;
     private InputType inputType;
     private LocalDateTime responseTime;

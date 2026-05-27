@@ -1,6 +1,5 @@
 package com.project.ai.service;
 
-import com.project.ai.agents.MultiAgentCoordinator;
 import com.project.ai.config.TokenTrackerFactory;
 import com.project.ai.dto.ChatRequest;
 import com.project.ai.dto.MultimodalRequest;
@@ -24,6 +23,7 @@ public class ChatService {
     private final InputProcessor inputProcessor;
     private final TokenTrackerFactory trackerFactory;
     private final PlannerService plannerService;
+
     public MultimodalResponse chat(final Long userId, final ChatRequest chatRequest) {
 
         log.info("[ChatService] START — userId ={}, question={}", userId, chatRequest.getQuestion());
