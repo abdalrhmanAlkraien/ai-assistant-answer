@@ -34,7 +34,7 @@ public class PromptLoader {
         log.info("[PromptLoader] Loading prompts for business='{}'", businessName);
 
         List<BusinessPrompt> prompts = promptRepository
-                .findAllByBusinessNameAndIsActiveTrue(businessName);
+                .findAllByBusinessNameAndActiveTrue(businessName);
 
         prompts.forEach(p -> {
             promptCache.put(p.getPromptKey(), p.getPromptTemplate());
@@ -58,7 +58,7 @@ public class PromptLoader {
     public void reload(String promptKey) {
         log.info("[PromptLoader] Reloading prompt key='{}'", promptKey);
         promptRepository
-                .findByBusinessNameAndPromptKeyAndIsActiveTrue(businessName, promptKey)
+                .findByBusinessNameAndPromptKeyAndActiveTrue(businessName, promptKey)
                 .ifPresent(p -> {
                     promptCache.put(p.getPromptKey(), p.getPromptTemplate());
                     log.info("[PromptLoader] Reloaded prompt key='{}'", promptKey);
