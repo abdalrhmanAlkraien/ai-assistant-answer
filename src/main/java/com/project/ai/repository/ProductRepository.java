@@ -2,6 +2,7 @@ package com.project.ai.repository;
 
 import com.project.ai.model.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -68,4 +69,8 @@ public interface ProductRepository extends JpaRepository<Product, String> {
 
     @Query("SELECT p FROM Product p WHERE p.active = true AND p.productId IN :ids")
     List<Product> findActiveByProductIds(@Param("ids") List<String> ids);
+
+    @Modifying
+    @Query("DELETE FROM Product p WHERE p.productId IN :ids")
+    void deleteAllByProductIds(@Param("ids") List<String> ids);
 }

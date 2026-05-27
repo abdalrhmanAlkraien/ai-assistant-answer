@@ -13,6 +13,8 @@ public record ProductRequest(
         String category,
         String brand,
         Double price,
-        String currency
+        String currency,
+        String description,
+        String imageUrl
 ) {
 }

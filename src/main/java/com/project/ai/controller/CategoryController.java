@@ -4,6 +4,12 @@ import com.project.ai.dto.CategoryRequest;
 import com.project.ai.loader.CategoryLoader;
 import com.project.ai.model.Category;
 import com.project.ai.service.CategoryService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,43 +33,80 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/categories")
 @RequiredArgsConstructor
+@Tag(name = "Categories", description = "Category management and cache reload")
 public class CategoryController {
 
 
     private final CategoryService categoryService;
     private final CategoryLoader categoryLoader;
 
+    @Operation(summary = "Create a category")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Category created"),
+            @ApiResponse(responseCode = "400", description = "Invalid request body", content = @Content)
+    })
     @PostMapping
     public ResponseEntity<Category> create(@RequestBody @Valid CategoryRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.create(request));
     }
 
+    @Operation(summary = "Batch create categories", description = "Create multiple categories in one request")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Categories created"),
+            @ApiResponse(responseCode = "400", description = "Invalid request body", content = @Content)
+    })
     @PostMapping("/batch")
     public ResponseEntity<List<Category>> createList(@RequestBody @Valid List<CategoryRequest> requests) {
         return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.createList(requests));
     }
 
+    @Operation(summary = "Get all categories")
+    @ApiResponse(responseCode = "200", description = "Categories retrieved")
     @GetMapping
     public ResponseEntity<List<Category>> findAll() {
         return ResponseEntity.ok(categoryService.findAll());
     }
 
+    @Operation(summary = "Get category by ID")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Category found"),
+            @ApiResponse(responseCode = "404", description = "Category not found", content = @Content)
+    })
     @GetMapping("/{id}")
-    public ResponseEntity<Category> findById(@PathVariable Long id) {
+    public ResponseEntity<Category> findById(
+            @Parameter(description = "Category ID", required = true) @PathVariable Long id) {
         return ResponseEntity.ok(categoryService.findById(id));
     }
 
+    @Operation(summary = "Update a category")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Category updated"),
+            @ApiResponse(responseCode = "404", description = "Category not found", content = @Content)
+    })
     @PutMapping("/{id}")
-    public ResponseEntity<Category> update(@PathVariable Long id, @RequestBody @Valid CategoryRequest request) {
+    public ResponseEntity<Category> update(
+            @Parameter(description = "Category ID", required = true) @PathVariable Long id,
+            @RequestBody @Valid CategoryRequest request) {
         return ResponseEntity.ok(categoryService.update(id, request));
     }
 
+    @Operation(summary = "Delete a category")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Category deleted"),
+            @ApiResponse(responseCode = "404", description = "Category not found", content = @Content)
+    })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(
+            @Parameter(description = "Category ID", required = true) @PathVariable Long id) {
         categoryService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(
+            summary = "Reload category cache",
+            description = "Reloads all active categories from DB into memory — use after adding new categories"
+    )
+    @ApiResponse(responseCode = "200", description = "Categories reloaded successfully")
     @PostMapping("/categories/reload")
     public ResponseEntity<String> reloadCategories() {
         categoryLoader.reload();
