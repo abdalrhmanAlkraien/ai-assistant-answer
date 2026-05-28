@@ -73,4 +73,7 @@ public interface ProductRepository extends JpaRepository<Product, String> {
     @Modifying
     @Query("DELETE FROM Product p WHERE p.productId IN :ids")
     void deleteAllByProductIds(@Param("ids") List<String> ids);
+
+
+    Long countByActiveTrue();
 }

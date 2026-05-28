@@ -73,4 +73,7 @@ public class TokenRequestSummary {
     @OneToMany(mappedBy = "requestSummary", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     @Builder.Default
     private List<TokenCallRecord> callRecords = new ArrayList<>();
+
+    @Column(name = "request_type", length = 50)
+    private String requestType;
 }

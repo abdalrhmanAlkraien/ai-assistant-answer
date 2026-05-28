@@ -1,5 +1,6 @@
 package com.project.ai.processing.text.english;
 
+import com.project.ai.agents.Language;
 import com.project.ai.config.LangChain4jProperties;
 import com.project.ai.dto.AiResult;
 import com.project.ai.dto.ProcessingRequest;
@@ -62,7 +63,8 @@ public class EnglishMemoryProcessor implements ChatProcessor, MemoryContext {
                 request.getSearchIntent(),
                 com.project.ai.model.MessageRole.USER,
                 request.getSearchIntent().getSemanticQuery(),
-                matchedProducts);
+                matchedProducts,
+                Language.ENGLISH);
 
         String summarized = summarizeIfNeeded(cleanAnswer, result.getType());
 
@@ -73,7 +75,8 @@ public class EnglishMemoryProcessor implements ChatProcessor, MemoryContext {
                 request.getSearchIntent(),
                 com.project.ai.model.MessageRole.AI,
                 summarized,
-                matchedProducts);
+                matchedProducts,
+                Language.ENGLISH);
 
         log.debug("[EnglishMemoryProcessor] Saving matchedProducts={}", result.getMatchedIds());
 

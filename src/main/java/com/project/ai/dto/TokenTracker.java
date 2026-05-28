@@ -1,6 +1,7 @@
 package com.project.ai.dto;
 
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
@@ -24,6 +25,9 @@ public class TokenTracker {
     private final String userId;
     @Getter private final String modelName;
     @Getter private final String userMessage;
+    @Getter @Setter
+    private String requestType;
+
 
 
     private final Instant startTime = Instant.now();

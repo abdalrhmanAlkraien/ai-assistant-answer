@@ -1,5 +1,6 @@
 package com.project.ai.service;
 
+import com.project.ai.agents.Language;
 import com.project.ai.config.AppProperties;
 import com.project.ai.dto.SearchIntent;
 import com.project.ai.model.ConversationMemory;
@@ -101,7 +102,8 @@ public class MemoryService {
                            final SearchIntent searchIntent,
                            final MessageRole role,
                            final String query,
-                           final String[] matchIds) {
+                           final String[] matchIds,
+                           final Language language) {
 
         String vectorQuery = toVectorString(convertToVector(query));
 
@@ -113,7 +115,8 @@ public class MemoryService {
                 vectorQuery,
                 searchIntent.getSearchType(),
                 matchIds,
-                LocalDateTime.now());
+                LocalDateTime.now(),
+                language.name());
     }
 
 
@@ -121,7 +124,8 @@ public class MemoryService {
                            final String searchType,
                            final MessageRole role,
                            final String query,
-                           final String[] matchIds) {
+                           final String[] matchIds,
+                           final Language language) {
 
         String vectorQuery = toVectorString(convertToVector(query));
 
@@ -133,7 +137,8 @@ public class MemoryService {
                 vectorQuery,
                 searchType,
                 matchIds,
-                LocalDateTime.now());
+                LocalDateTime.now(),
+                language.name());
     }
 
     private ConversationMemory buildConversationMemory(

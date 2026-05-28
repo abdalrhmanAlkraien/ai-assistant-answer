@@ -338,7 +338,8 @@ public class EcommercePlanExecutor implements PlanExecutor {
                     planResult.getType(),
                     MessageRole.USER,
                     request.getTextQuestion(),
-                    matchedIds);
+                    matchedIds,
+                    request.getDetectedLanguage());
 
             // save AI answer — summarize if long
             String answer = planResult.getAnswer();
@@ -351,7 +352,8 @@ public class EcommercePlanExecutor implements PlanExecutor {
                     planResult.getType(),
                     MessageRole.AI,
                     answer,
-                    matchedIds);
+                    matchedIds,
+                    request.getDetectedLanguage());
 
             log.info("[PlanExecutor] memory saved — userId={} type={} matchedIds={}",
                     request.getUserId(), planResult.getType(), matchedIds.length);

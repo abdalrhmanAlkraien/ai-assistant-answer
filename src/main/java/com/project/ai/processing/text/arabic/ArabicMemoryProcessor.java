@@ -1,8 +1,10 @@
 package com.project.ai.processing.text.arabic;
 
+import com.project.ai.agents.Language;
 import com.project.ai.config.LangChain4jProperties;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
+import com.project.ai.model.MessageRole;
 import com.project.ai.processing.ChatProcessor;
 import com.project.ai.processing.text.structure.IntentAnalyzer;
 import com.project.ai.processing.text.structure.MemoryContext;
@@ -59,9 +61,10 @@ public class ArabicMemoryProcessor implements ChatProcessor, MemoryContext {
         memoryService.saveMemory(
                 request.getUserId(),
                 request.getSearchIntent(),
-                com.project.ai.model.MessageRole.USER,
+                MessageRole.USER,
                 request.getSearchIntent().getSemanticQuery(),
-                matchedProducts);
+                matchedProducts,
+                Language.ARABIC);
 
         log.debug("[ArabicMemoryProcessor] Saving AI answer='{}'", result.getAnswer());
 
@@ -72,7 +75,8 @@ public class ArabicMemoryProcessor implements ChatProcessor, MemoryContext {
                 request.getSearchIntent(),
                 com.project.ai.model.MessageRole.AI,
                 summarized,
-                matchedProducts);
+                matchedProducts,
+                Language.ARABIC);
 
         log.debug("[ArabicMemoryProcessor] Saving matchedProducts={}", result.getMatchedIds());
 

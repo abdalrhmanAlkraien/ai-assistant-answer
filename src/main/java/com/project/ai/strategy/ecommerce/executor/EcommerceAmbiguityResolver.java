@@ -100,7 +100,7 @@ public class EcommerceAmbiguityResolver implements AmbiguityResolver {
                     .language(request.getDetectedLanguage())
                     .build();
 
-            saveToMemory(request.getUserId(), request.getTextQuestion(), context);
+            saveToMemory(request.getUserId(), request.getTextQuestion(), context, request.getDetectedLanguage());
 
             log.info("[EcommerceAmbiguityResolver] clarification='{}'",
                     context.getClarificationQuestion());
@@ -148,14 +148,14 @@ public class EcommerceAmbiguityResolver implements AmbiguityResolver {
 
     // ── Save to memory ────────────────────────────────────────────────────────
 
-    private void saveToMemory(Long userId, String question, ClarificationContext context) {
+    private void saveToMemory(Long userId, String question, ClarificationContext context, Language detectedLanguage) {
         try {
-            memoryService.saveMemory(userId, "Ambiguity", MessageRole.USER, question, null);
+            memoryService.saveMemory(userId, "Ambiguity", MessageRole.USER, question, null, detectedLanguage);
 
             String aiMessage = context.getClarificationQuestion() + " "
                     + String.join(" | ", context.getSuggestedOptions());
 
-            memoryService.saveMemory(userId, "Ambiguity", MessageRole.AI, aiMessage, null);
+            memoryService.saveMemory(userId, "Ambiguity", MessageRole.AI, aiMessage, null, detectedLanguage);
 
             log.info("[EcommerceAmbiguityResolver] saved to memory userId={}", userId);
 

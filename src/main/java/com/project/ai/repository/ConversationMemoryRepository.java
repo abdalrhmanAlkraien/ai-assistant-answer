@@ -1,5 +1,6 @@
 package com.project.ai.repository;
 
+import com.project.ai.agents.Language;
 import com.project.ai.model.ConversationMemory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * @author: Abd-alrhman Alkraien.
@@ -66,11 +68,11 @@ public interface ConversationMemoryRepository extends JpaRepository<Conversation
     @Modifying
     @Transactional
     @Query(value = """
-            INSERT INTO conversation_memory 
-                (user_id, role, message, message_vector, search_type, matched_products, created_at)
-            VALUES 
-                (:userId, :role, :message, CAST(:messageVector AS vector), :searchType, :matchedProducts, :createdAt)
-            """, nativeQuery = true)
+        INSERT INTO conversation_memory 
+            (user_id, role, message, message_vector, search_type, matched_products, created_at, language)
+        VALUES 
+            (:userId, :role, :message, CAST(:messageVector AS vector), :searchType, :matchedProducts, :createdAt, :language)
+        """, nativeQuery = true)
     void insertMemory(
             @Param("userId") Long userId,
             @Param("role") String role,
@@ -78,7 +80,8 @@ public interface ConversationMemoryRepository extends JpaRepository<Conversation
             @Param("messageVector") String messageVector,
             @Param("searchType") String searchType,
             @Param("matchedProducts") String[] matchedProducts,
-            @Param("createdAt") LocalDateTime createdAt
+            @Param("createdAt") LocalDateTime createdAt,
+            @Param("language") String language
     );
 
     @Query("SELECT cm.userId, COUNT(cm.id) as messageCount, MAX(cm.createdAt) as lastActivity " +
@@ -104,4 +107,19 @@ public interface ConversationMemoryRepository extends JpaRepository<Conversation
     Long countDistinctUsers();
 
     Long countBy();
+
+    @Query("SELECT cm.searchType, COUNT(cm) FROM ConversationMemory cm " +
+            "WHERE cm.searchType IS NOT NULL AND cm.role = 'USER' " +
+            "GROUP BY cm.searchType ORDER BY COUNT(cm) DESC")
+    List<Object[]> countBySearchType();
+
+    @Query("SELECT cm.language, COUNT(cm) FROM ConversationMemory cm " +
+            "WHERE cm.language IS NOT NULL AND cm.role = 'USER' " +
+            "GROUP BY cm.language ORDER BY COUNT(cm) DESC")
+    List<Object[]> countByLanguage();
+
+    @Query("SELECT cm.language FROM ConversationMemory cm " +
+            "WHERE cm.userId = :userId AND cm.role = 'USER' " +
+            "ORDER BY cm.createdAt DESC LIMIT 1")
+    Optional<String> findLastLanguageByUserId(@Param("userId") String userId);
 }

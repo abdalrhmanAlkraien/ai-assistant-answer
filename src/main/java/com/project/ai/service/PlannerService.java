@@ -62,6 +62,8 @@ public class PlannerService {
             MultimodalResponse result = strategyLoader.getActive().handle(analysis, request);
             List<ProductSummary> enriched = enrichmentService.enrich(result.getMatchProducts());
             result.setProducts(enriched);
+            request.getTokenTracker().setRequestType(result.getType());  // won't work — final field
+
 
             result.setQuestion(originalQuestion);  // ← add this line
 

@@ -1,5 +1,6 @@
 package com.project.ai.model;
 
+import com.project.ai.agents.Language;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -62,4 +63,8 @@ public class ConversationMemory {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "language", length = 20)
+    @Enumerated(EnumType.STRING)
+    private Language language;
 }
