@@ -28,7 +28,7 @@ public class SuggestionService {
         log.info("suggest product enable");
 
         String productsContext = suggestContext.getFilteredMatches().stream()
-                .map(m -> "[" + m.embedded().metadata().getString("id") + "] "
+                .map(m -> "[" + m.embedded().metadata().getString("productId") + "] "
                         + m.embedded().text())
                 .collect(Collectors.joining("\n"));
 

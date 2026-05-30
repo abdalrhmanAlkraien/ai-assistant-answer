@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -89,9 +90,10 @@ public class EcommerceEnglishOrchestrator implements EnglishProcessingOrchestrat
                 result.getType(), result.getMatchedIds().size(),
                 result.getAnswer() != null ? result.getAnswer().length() : 0);
 
-        if (!request.isParallelStep()) {
+        if (!request.isParallelStep() && !"greeting".equals(result.getType())) {
             englishMemoryProcessor.saveToMemory(request, result);
         }
+
 
         log.info("[EcommerceEnglishOrchestrator] END — userId={}", request.getUserId());
         return result;
@@ -104,7 +106,6 @@ public class EcommerceEnglishOrchestrator implements EnglishProcessingOrchestrat
                 : "knowledge";                    // ← safe default
 
         if (type == null) type = "knowledge";     // ← extra null guard
-
 
         log.info("[EcommerceEnglishOrchestrator] routing — type={}", type);
 
@@ -127,6 +128,17 @@ public class EcommerceEnglishOrchestrator implements EnglishProcessingOrchestrat
         if (DB_TYPES.contains(type)) {
             log.info("[EcommerceEnglishOrchestrator] → EcommerceFilterProcessor (SQL)");
             return handleDbFilter(request);
+        }
+
+        // EcommerceEnglishOrchestrator.route()
+        if ("greeting".equals(type)) {
+            log.info("[EcommerceEnglishOrchestrator] → Greeting response");
+            return ProcessingResult.builder()
+                    .type("greeting")
+                    .enrichedQuestion(request.getRawQuestion())
+                    .answer("Hello! Welcome to our store. How can I help you find products today?")
+                    .matchedIds(List.of())
+                    .build();
         }
 
         // semantic, comparison — vector search via SegmentProcessor

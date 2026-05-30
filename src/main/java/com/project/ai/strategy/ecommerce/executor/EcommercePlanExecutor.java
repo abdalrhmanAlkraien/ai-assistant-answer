@@ -138,7 +138,13 @@ public class EcommercePlanExecutor implements PlanExecutor {
         // ── Merge results ─────────────────────────────────────────────────────
         PlanResult planResult = mergeResults(results, plan, stepsExecuted, fallbackUsed);
 
-        saveMemory(request, planResult);
+        boolean isGreeting = plan.getClarificationContext() != null
+                && plan.getClarificationContext().isGreeting();
+
+        if (!isGreeting) {
+            saveMemory(request, planResult);
+        }
+
         log.info("[PlanExecutor] END — stepsExecuted={} fallback={} matchedIds={}",
                 stepsExecuted, fallbackUsed, planResult.getMatchedIds().size());
 

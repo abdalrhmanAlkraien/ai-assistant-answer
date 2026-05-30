@@ -21,6 +21,7 @@ import com.project.ai.processing.text.structure.IntentAnalyzer;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -131,7 +132,7 @@ public class EcommerceArabicProcessingOrchestrator implements ArabicProcessingOr
                 result.getType(), result.getMatchedIds().size(),
                 result.getAnswer() != null ? result.getAnswer().length() : 0);
 
-        if (!request.isParallelStep()) {
+        if (!request.isParallelStep() && !"greeting".equals(result.getType())) {
             memoryProcessor.saveToMemory(request, result);
         }
 
@@ -173,6 +174,17 @@ public class EcommerceArabicProcessingOrchestrator implements ArabicProcessingOr
         if (DB_TYPES.contains(type)) {
             log.info("[EcommerceArabicOrchestrator] → EcommerceFilterProcessor (SQL)");
             return handleDbFilter(request);
+        }
+
+        // EcommerceArabicOrchestrator.route()
+        if ("greeting".equals(type)) {
+            log.info("[EcommerceArabicOrchestrator] → Greeting response");
+            return ProcessingResult.builder()
+                    .type("greeting")
+                    .enrichedQuestion(request.getRawQuestion())
+                    .answer("أهلاً وسهلاً! كيف يمكنني مساعدتك في التسوق اليوم؟")
+                    .matchedIds(List.of())
+                    .build();
         }
 
         // all other types — try segment first

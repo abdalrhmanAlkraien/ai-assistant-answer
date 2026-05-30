@@ -174,4 +174,18 @@ public class ProductController {
         return ResponseEntity.ok(productService.toggleStatus(productId, active));
     }
 
+    @Operation(
+            summary = "Clear product index",
+            description = "Removes all product embeddings from ChromaDB vector store. Use before re-indexing all products."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Index cleared successfully"),
+            @ApiResponse(responseCode = "500", description = "Failed to clear index", content = @Content)
+    })
+    @DeleteMapping("/index")
+    public ResponseEntity<String> clearIndex() {
+        productService.clearProductIndex();
+        return ResponseEntity.ok("Product index cleared successfully");
+    }
+
 }

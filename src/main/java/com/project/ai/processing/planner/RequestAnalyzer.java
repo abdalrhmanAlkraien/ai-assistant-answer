@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author: Abd-alrhman Alkraien.
@@ -39,10 +40,46 @@ public class RequestAnalyzer {
     private final LangChain4jProperties properties;
     private final PromptLoader promptLoader;      // ← inject
 
+
+    private static final Set<String> ENGLISH_GREETINGS = Set.of(
+            "hi", "hello", "hey", "good morning", "good afternoon", "good evening",
+            "how are you", "how are you?", "thanks", "thank you", "bye", "goodbye",
+            "welcome", "greetings", "sup", "what's up", "whats up"
+    );
+
+    private static final Set<String> ARABIC_GREETINGS = Set.of(
+            "مرحبا", "أهلا", "أهلاً", "اهلا", "السلام عليكم", "صباح الخير",
+            "مساء الخير", "كيف حالك", "كيف حالك؟", "شكرا", "شكراً", "وداعا",
+            "مع السلامة", "أهلاً وسهلاً", "هلا", "هلو", "هاي"
+    );
+
     public RequestAnalysis analyze(MultimodalRequest request, String memoryContext) {
+
 
         TokenTracker tracker = request.getTokenTracker();
         String rawQuestion = request.getTextQuestion();
+
+        // RequestAnalyzer.analyze() — add at the top before LLM call
+        if (isGreeting(rawQuestion, request.getDetectedLanguage())) {
+            log.info("[RequestAnalyzer] Greeting detected — skipping LLM call");
+            return RequestAnalysis.builder()
+                    .enrichedQuestion(rawQuestion)
+                    .language(request.getDetectedLanguage())
+                    .complexity(ComplexityLevel.SIMPLE)
+                    .intentTypes(List.of(IntentType.KNOWLEDGE))
+                    .isMultiStep(false)
+                    .isAmbiguous(false)
+                    .requiresMemoryContext(false)
+                    .relatedToPreviousContext(false)
+                    .normalizedQuestion(rawQuestion)
+                    .searchType("greeting")    // ← new type
+                    .category(null)
+                    .brand(null)
+                    .minPrice(null)
+                    .maxPrice(null)
+                    .sortDirection(null)
+                    .build();
+        }
 
         log.info("[RequestAnalyzer] START — question='{}'", rawQuestion);  // ← fix
 
@@ -186,5 +223,14 @@ public class RequestAnalyzer {
     private Double getDoubleOrNull(JsonNode node, String field) {
         JsonNode n = node.get(field);
         return (n == null || n.isNull()) ? null : n.asDouble();
+    }
+
+    private boolean isGreeting(String question, Language language) {
+        if (question == null) return false;
+        String normalized = question.trim().toLowerCase();
+        if (language == Language.ARABIC) {
+            return ARABIC_GREETINGS.contains(normalized);
+        }
+        return ENGLISH_GREETINGS.contains(normalized);
     }
 }

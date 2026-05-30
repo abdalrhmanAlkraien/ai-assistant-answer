@@ -168,25 +168,24 @@ public class ProductService {
 
         for (Product product : products) {
             try {
-                // check if already indexed
-                if (isAlreadyIndexed(product.getProductId())) {
-                    log.info("[ProductService] Already indexed — skipping productId={}",
-                            product.getProductId());
+                // removed isAlreadyIndexed check — just always index
+                String content = buildProductContent(product);
+                if (content == null || content.isBlank()) {
+                    log.warn("[ProductService] Empty content for productId={} — skipping", product.getProductId());
                     skipped++;
                     continue;
                 }
 
-                String content = buildProductContent(product);
                 TextSegment segment = TextSegment.from(content,
                         Metadata.from("productId", product.getProductId()));
 
                 Embedding embedding = embeddingModel.embed(segment).content();
                 embeddingStore.add(embedding, segment);
                 indexed++;
+                log.info("[ProductService] Indexed productId={}", product.getProductId());
 
             } catch (Exception e) {
-                log.warn("[ProductService] Failed to index product={}: {}",
-                        product.getProductId(), e.getMessage());
+                log.error("[ProductService] Failed to index productId={}: {}", product.getProductId(), e.getMessage());
                 failed++;
             }
         }
@@ -314,12 +313,21 @@ public class ProductService {
 
 
     private String buildProductContent(Product product) {
-        return String.format("%s %s %s price:%s %s",
-                product.getTitle(),
+        if (product.getProductId() == null) {
+            log.warn("[ProductService] productId is null — skipping");
+            return null;
+        }
+
+        String content = String.format("%s %s %s price:%s %s",
+                product.getTitle() != null ? product.getTitle() : "",
                 product.getCategory() != null ? product.getCategory() : "",
                 product.getBrand() != null ? product.getBrand() : "",
-                product.getPrice(),
+                product.getPrice() != null ? product.getPrice() : "0",
                 product.getDescription() != null ? product.getDescription() : "");
+
+        log.debug("[ProductService] Built content for productId={}: '{}'",
+                product.getProductId(), content);
+        return content;
     }
 
     // ── Query ─────────────────────────────────────────────────────────────────
@@ -355,5 +363,17 @@ public class ProductService {
                     return productRepository.save(product);
                 })
                 .toList();
+    }
+
+    @Transactional
+    public void clearProductIndex() {
+        log.info("[ProductService] Clearing all product embeddings from ChromaDB");
+        try {
+            embeddingStore.removeAll();
+            log.info("[ProductService] ChromaDB index cleared successfully");
+        } catch (Exception e) {
+            log.error("[ProductService] Failed to clear ChromaDB index: {}", e.getMessage());
+            throw new RuntimeException("Failed to clear product index: " + e.getMessage());
+        }
     }
 }

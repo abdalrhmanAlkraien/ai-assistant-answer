@@ -19,4 +19,5 @@ public class ClarificationContext {
     private final String clarificationQuestion;  // in user's language
     private final List<String> suggestedOptions; // suggested choices
     private final Language language;
+    private final boolean isGreeting;
 }

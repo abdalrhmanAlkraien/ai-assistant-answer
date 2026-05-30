@@ -186,7 +186,7 @@ public class FilterProcessor {
         };
 
         String context = filtered.stream()
-                .map(match -> "[" + match.embedded().metadata().getString("id") + "] "
+                .map(match -> "[" + match.embedded().metadata().getString("productId") + "] "
                         + match.embedded().text())
                 .collect(Collectors.joining("\n"));
 
@@ -199,7 +199,7 @@ public class FilterProcessor {
 
     private Double extractPrice(String content) {
         try {
-            Pattern pattern = Pattern.compile("Price:\\s*(\\d+(?:\\.\\d+)?)\\s*USD");
+            Pattern pattern = Pattern.compile("price:(\\d+(?:\\.\\d+)?)");  // ← lowercase, no USD
             Matcher matcher = pattern.matcher(content);
             if (matcher.find()) {
                 return Double.parseDouble(matcher.group(1));

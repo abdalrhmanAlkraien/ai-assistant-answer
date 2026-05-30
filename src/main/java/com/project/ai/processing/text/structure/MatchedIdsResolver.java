@@ -68,7 +68,7 @@ public class MatchedIdsResolver {
     private List<String> resolveFromContext(FilteredContext context) {
 
         List<String> ids = context.getFilteredMatches().stream()
-                .map(m -> m.embedded().metadata().getString("id"))
+                .map(m -> m.embedded().metadata().getString("productId"))
                 .collect(Collectors.toList());
 
         log.info("[MatchedIdsResolver] Taking {} IDs from filtered context", ids.size());
