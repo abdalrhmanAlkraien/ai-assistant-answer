@@ -95,6 +95,11 @@ public class RagConfig {
         return buildModel("powerful");
     }
 
+    @Bean("vision")
+    public ChatModel visionChatModel(LangChain4jProperties properties) {
+        return buildModel("vision");
+    }
+
     @Bean
     public ApacheTikaDocumentParser tikaParser() {
         return new ApacheTikaDocumentParser();

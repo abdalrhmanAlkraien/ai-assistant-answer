@@ -32,4 +32,5 @@ public class MultimodalResponse {
     private LocalDateTime responseTime;
     private List<String> suggestedOptions;
     private String transcribedText;
+    private String imageDescription;
 }

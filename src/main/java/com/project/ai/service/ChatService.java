@@ -6,6 +6,7 @@ import com.project.ai.dto.MultimodalRequest;
 import com.project.ai.dto.MultimodalResponse;
 import com.project.ai.dto.TokenTracker;
 import com.project.ai.processing.text.InputProcessor;
+import com.project.ai.processing.vision.VisionProcessor;
 import com.project.ai.processing.voice.VoiceProcessor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -25,10 +26,17 @@ public class ChatService {
     private final TokenTrackerFactory trackerFactory;
     private final PlannerService plannerService;
     private final VoiceProcessor voiceProcessor;
+    private final VisionProcessor visionProcessor;
 
     public MultimodalResponse chat(final String userId, final ChatRequest chatRequest) {
 
         log.info("[ChatService] START — userId ={}, question={}", userId, chatRequest.getQuestion());
+
+        TokenTracker tracker = trackerFactory.create(
+                userId,
+                "chat-service",
+                chatRequest.getQuestion()
+        );
 
         // ── Voice pre-processing ──────────────────────────────────────────────
         if (chatRequest.getAudioBase64() != null && !chatRequest.getAudioBase64().isBlank()) {
@@ -43,14 +51,34 @@ public class ChatService {
             chatRequest.setQuestion(transcribed);
         }
 
-        TokenTracker tracker = trackerFactory.create(
-                userId,
-                "chat-service",
-                chatRequest.getQuestion()
-        );
+        if (chatRequest.getImageBase64() != null && !chatRequest.getImageBase64().isBlank()) {
+            log.info("[ChatService] Image input detected — describing image userId={}", userId);
+
+            String description = visionProcessor.describe(
+                    chatRequest.getImageBase64(),
+                    chatRequest.getImageMediaType(),
+                    tracker
+            );
+
+            log.info("[ChatService] Image description complete — userId={} text='{}'", userId, description);
+            chatRequest.setQuestion(description);
+            chatRequest.setImageBase64(null);        // ← clear so InputProcessor treats as TEXT
+            chatRequest.setImageMediaType(null);     // ← clear
+        }
 
         MultimodalRequest multimodalRequest = inputProcessor.process(userId, chatRequest);
         multimodalRequest.setTokenTracker(tracker);
-        return plannerService.plan(multimodalRequest);
+
+        MultimodalResponse response = plannerService.plan(multimodalRequest);
+
+        // ── Set transcribed/described text on response ────────────────────────
+        if (chatRequest.getAudioBase64() != null && !chatRequest.getAudioBase64().isBlank()) {
+            response.setTranscribedText(chatRequest.getQuestion());
+        }
+
+        if (chatRequest.getImageBase64() != null && !chatRequest.getImageBase64().isBlank()) {
+            response.setImageDescription(chatRequest.getQuestion());
+        }
+        return response;
     }
 }
