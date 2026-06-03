@@ -52,7 +52,6 @@ public class ChatService {
         }
 
         if (chatRequest.getImageBase64() != null && !chatRequest.getImageBase64().isBlank()) {
-            log.info("[ChatService] Image input detected — describing image userId={}", userId);
 
             String description = visionProcessor.describe(
                     chatRequest.getImageBase64(),
@@ -60,10 +59,20 @@ public class ChatService {
                     tracker
             );
 
-            log.info("[ChatService] Image description complete — userId={} text='{}'", userId, description);
-            chatRequest.setQuestion(description);
-            chatRequest.setImageBase64(null);        // ← clear so InputProcessor treats as TEXT
-            chatRequest.setImageMediaType(null);     // ← clear
+            // ── Merge image description with user question ────────────────────
+            String mergedQuestion;
+            if (chatRequest.getQuestion() != null && !chatRequest.getQuestion().isBlank()) {
+                // user sent both image AND text — combine them
+                mergedQuestion = description + ". User asks: " + chatRequest.getQuestion();
+                log.info("[ChatService] Merged image+text — userId={} merged='{}'", userId, mergedQuestion);
+            } else {
+                // user sent image only
+                mergedQuestion = description;
+            }
+
+            chatRequest.setQuestion(mergedQuestion);
+            chatRequest.setImageBase64(null);
+            chatRequest.setImageMediaType(null);
         }
 
         MultimodalRequest multimodalRequest = inputProcessor.process(userId, chatRequest);
