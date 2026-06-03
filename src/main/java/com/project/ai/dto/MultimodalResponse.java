@@ -26,9 +26,10 @@ public class MultimodalResponse {
     private String answer;
     private List<ProductSummary> products;
     @JsonIgnore
-    private List<String> matchProducts;             // ← internal use only
+    private List<String> matchProducts;
     private Language language;
     private InputType inputType;
     private LocalDateTime responseTime;
     private List<String> suggestedOptions;
+    private String transcribedText;
 }

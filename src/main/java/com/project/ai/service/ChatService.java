@@ -6,6 +6,7 @@ import com.project.ai.dto.MultimodalRequest;
 import com.project.ai.dto.MultimodalResponse;
 import com.project.ai.dto.TokenTracker;
 import com.project.ai.processing.text.InputProcessor;
+import com.project.ai.processing.voice.VoiceProcessor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -23,14 +24,28 @@ public class ChatService {
     private final InputProcessor inputProcessor;
     private final TokenTrackerFactory trackerFactory;
     private final PlannerService plannerService;
+    private final VoiceProcessor voiceProcessor;
 
-    public MultimodalResponse chat(final Long userId, final ChatRequest chatRequest) {
+    public MultimodalResponse chat(final String userId, final ChatRequest chatRequest) {
 
         log.info("[ChatService] START — userId ={}, question={}", userId, chatRequest.getQuestion());
 
+        // ── Voice pre-processing ──────────────────────────────────────────────
+        if (chatRequest.getAudioBase64() != null && !chatRequest.getAudioBase64().isBlank()) {
+            log.info("[ChatService] Voice input detected — transcribing audio userId={}", userId);
+
+            String transcribed = voiceProcessor.transcribe(
+                    chatRequest.getAudioBase64(),
+                    chatRequest.getAudioMediaType()
+            );
+
+            log.info("[ChatService] Transcription complete — userId={} text='{}'", userId, transcribed);
+            chatRequest.setQuestion(transcribed);
+        }
+
         TokenTracker tracker = trackerFactory.create(
-                String.valueOf(userId),
-                "moonshotai/kimi-k2.6",
+                userId,
+                "chat-service",
                 chatRequest.getQuestion()
         );
 

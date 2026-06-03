@@ -5,7 +5,6 @@ import com.project.ai.dto.ChatRequest;
 import com.project.ai.dto.InputType;
 import com.project.ai.dto.MultimodalRequest;
 import com.project.ai.util.LanguageDetector;
-import dev.langchain4j.model.chat.ChatModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -20,9 +19,7 @@ import org.springframework.stereotype.Service;
 @Log4j2
 public class InputProcessor {
 
-    private final ChatModel chatModel;
-
-    public MultimodalRequest process(final Long userId, final ChatRequest chatRequest) {
+    public MultimodalRequest process(final String userId, final ChatRequest chatRequest) {
 
         InputType inputType = resolveInputType(chatRequest.getQuestion(), chatRequest.getImageBase64());
         log.info("[InputProcessor] inputType={}", inputType);

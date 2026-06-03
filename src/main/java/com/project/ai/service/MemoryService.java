@@ -33,7 +33,7 @@ public class MemoryService {
     private final AppProperties appProperties;
 
     public String memoryContext(
-            final Long userId,
+            final String userId,
             final String userQuery
     ) {
 
@@ -85,7 +85,7 @@ public class MemoryService {
     }
 
     private List<ConversationMemory> getSimilarConversation(
-            final Long userId,
+            final String userId,
             final String userQuery) {
 
         return memoryRepository.findSimilarMessages(
@@ -93,12 +93,12 @@ public class MemoryService {
     }
 
     private List<ConversationMemory> getRecentConversation (
-            Long userId
+            String userId
     ) {
 
         return memoryRepository.findRecentMessages(userId, appProperties.getMemory().getContext());
     }
-    public void saveMemory(final Long userId,
+    public void saveMemory(final String userId,
                            final SearchIntent searchIntent,
                            final MessageRole role,
                            final String query,
@@ -120,7 +120,7 @@ public class MemoryService {
     }
 
 
-    public void saveMemory(final Long userId,
+    public void saveMemory(final String userId,
                            final String searchType,
                            final MessageRole role,
                            final String query,
@@ -142,7 +142,7 @@ public class MemoryService {
     }
 
     private ConversationMemory buildConversationMemory(
-            final Long userId,
+            final String userId,
             final SearchIntent searchIntent,
             final MessageRole role,
             final String query,

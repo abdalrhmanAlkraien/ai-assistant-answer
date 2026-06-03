@@ -161,7 +161,7 @@ public class EcommerceAmbiguityResolver implements AmbiguityResolver {
 
     // ── Save to memory ────────────────────────────────────────────────────────
 
-    private void saveToMemory(Long userId, String question, ClarificationContext context, Language detectedLanguage) {
+    private void saveToMemory(String userId, String question, ClarificationContext context, Language detectedLanguage) {
         try {
             memoryService.saveMemory(userId, "Ambiguity", MessageRole.USER, question, null, detectedLanguage);
 

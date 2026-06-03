@@ -40,7 +40,7 @@ public class ChatController {
     })
     @PostMapping("/chat/{id}")
     public ResponseEntity<MultimodalResponse> chat(
-            @PathVariable("id") final Long userId,
+            @PathVariable("id") final String userId,
             final @RequestBody ChatRequest chatRequest) throws JsonProcessingException {
 
         return ResponseEntity.ok(chatService.chat(userId, chatRequest));

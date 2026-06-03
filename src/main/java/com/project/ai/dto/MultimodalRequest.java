@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class MultimodalRequest {
 
-    private Long userId;
+    private String userId;
     private String textQuestion;        // text input
     private String audioBase64;         // voice input (base64)
     private String imageBase64;         // image input (base64)

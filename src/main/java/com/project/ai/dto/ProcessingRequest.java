@@ -18,7 +18,7 @@ import java.util.List;
 @Builder
 public class ProcessingRequest {
 
-    private final Long userId;
+    private final String userId;
     private final String rawQuestion;
 
     // populated by MemoryProcessor

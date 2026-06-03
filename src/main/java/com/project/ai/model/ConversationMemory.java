@@ -43,7 +43,7 @@ public class ConversationMemory {
     private Long id;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private String userId;
 
     @Column(name = "role", nullable = false)
     @Enumerated(EnumType.STRING)

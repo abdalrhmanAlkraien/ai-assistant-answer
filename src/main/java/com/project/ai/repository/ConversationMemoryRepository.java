@@ -1,6 +1,5 @@
 package com.project.ai.repository;
 
-import com.project.ai.agents.Language;
 import com.project.ai.model.ConversationMemory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,7 +29,7 @@ public interface ConversationMemoryRepository extends JpaRepository<Conversation
             LIMIT :limit
             """, nativeQuery = true)
     List<ConversationMemory> findRecentMessages(
-            @Param("userId") Long userId,
+            @Param("userId") String userId,
             @Param("limit") int limit
     );
 
@@ -43,7 +42,7 @@ public interface ConversationMemoryRepository extends JpaRepository<Conversation
             LIMIT :limit
             """, nativeQuery = true)
     List<ConversationMemory> findSimilarMessages(
-            @Param("userId") Long userId,
+            @Param("userId") String userId,
             @Param("vector") String vector,
             @Param("limit") int limit
     );
@@ -59,7 +58,7 @@ public interface ConversationMemoryRepository extends JpaRepository<Conversation
             LIMIT :limit
             """, nativeQuery = true)
     List<ConversationMemory> findSimilarMessagesWithScore(
-            @Param("userId") Long userId,
+            @Param("userId") String userId,
             @Param("vector") String vector,
             @Param("limit") int limit,
             @Param("minScore") double minScore
@@ -74,7 +73,7 @@ public interface ConversationMemoryRepository extends JpaRepository<Conversation
             (:userId, :role, :message, CAST(:messageVector AS vector), :searchType, :matchedProducts, :createdAt, :language)
         """, nativeQuery = true)
     void insertMemory(
-            @Param("userId") Long userId,
+            @Param("userId") String userId,
             @Param("role") String role,
             @Param("message") String message,
             @Param("messageVector") String messageVector,

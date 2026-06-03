@@ -16,5 +16,7 @@ public class ChatRequest {
 
     private String imageBase64;
     private String imageMediaType;
+    private String audioBase64;
+    private String audioMediaType;  // "audio/wav", "audio/webm"
     private String question;
 }
