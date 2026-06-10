@@ -25,11 +25,16 @@ public class EnglishSortProcessor implements ChatProcessor {
 
     private final ProductRepository productRepository;
 
+    private static final List<String> SINGLE_RESULT_KEYWORDS = List.of(
+            "cheapest", "most expensive", "the best", "the worst",
+            "the lowest", "the highest", "cheapest one", "priciest",
+            "most affordable", "least expensive", "top", "the one"
+    );
+
     @Override
     public boolean supports(String searchType) {
         return "sort".equals(searchType);
     }
-
     @Override
     public ProcessingResult process(ProcessingRequest request) {
         SearchIntent intent = request.getSearchIntent();
@@ -37,6 +42,9 @@ public class EnglishSortProcessor implements ChatProcessor {
                 intent.getSortDirection(), intent.getCategory(), intent.getBrand());
 
         boolean ascending = !"desc".equals(intent.getSortDirection());
+        boolean singleResult = isSingleResultQuery(intent.getSemanticQuery());
+
+        log.info("[EnglishSortProcessor] singleResult={} ascending={}", singleResult, ascending);
 
         List<Product> products = fetchProducts(intent);
 
@@ -56,16 +64,19 @@ public class EnglishSortProcessor implements ChatProcessor {
                         : Double.compare(b.getPrice(), a.getPrice()))
                 .toList();
 
-        String answer = sorted.stream()
-                .map(p -> p.getTitle() + " - " + p.getPrice() + " USD - " + p.getCategory())
+        // ── Apply limit if single result query ────────────────────────────────
+        List<Product> result = singleResult ? List.of(sorted.get(0)) : sorted;
+
+        String answer = result.stream()
+                .map(p -> p.getTitle() + " - $" + p.getPrice() + " - " + p.getCategory())
                 .collect(Collectors.joining("\n"));
 
-        List<String> matchedIds = sorted.stream()
+        List<String> matchedIds = result.stream()
                 .map(Product::getProductId)
                 .toList();
 
-        log.info("[EnglishSortProcessor] END — sorted={} direction={}",
-                sorted.size(), ascending ? "asc" : "desc");
+        log.info("[EnglishSortProcessor] END — returned={} direction={}",
+                result.size(), ascending ? "asc" : "desc");
 
         return ProcessingResult.builder()
                 .enrichedQuestion(intent.getSemanticQuery())
@@ -75,6 +86,11 @@ public class EnglishSortProcessor implements ChatProcessor {
                 .build();
     }
 
+    private boolean isSingleResultQuery(String query) {
+        if (query == null) return false;
+        String lower = query.toLowerCase();
+        return SINGLE_RESULT_KEYWORDS.stream().anyMatch(lower::contains);
+    }
 
     private List<Product> fetchProducts(SearchIntent intent) {
         if (intent.getCategory() != null && intent.getBrand() != null) {

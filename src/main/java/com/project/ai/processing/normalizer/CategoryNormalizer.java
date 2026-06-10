@@ -40,7 +40,12 @@ public class CategoryNormalizer {
 
         // partial match — find slug that contains the input
         String partial = categoryLoader.getCategorySlugs().stream()
-                .filter(slug -> slug.contains(lower) || lower.contains(slug))
+                .filter(slug -> {
+                    if (slug.equals(lower)) return true;
+                    if (slug.contains(lower)) return true;
+                    if (lower.contains(slug) && slug.length() > lower.length() * 0.7) return true;
+                    return false;
+                })
                 .findFirst()
                 .orElse(null);
 

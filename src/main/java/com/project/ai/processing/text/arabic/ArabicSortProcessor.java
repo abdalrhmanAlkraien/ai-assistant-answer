@@ -11,8 +11,6 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -27,6 +25,16 @@ public class ArabicSortProcessor implements ChatProcessor {
 
     private final ProductRepository productRepository;
 
+    // ── Keywords that imply a single result ──────────────────────────────────
+    private static final List<String> SINGLE_RESULT_KEYWORDS = List.of(
+            // Arabic
+            "الأرخص", "أرخص", "الأغلى", "أغلى",
+            "الأفضل", "أفضل", "الأقل سعراً", "الأعلى سعراً",
+            "الأقل سعرا", "الأعلى سعرا", "أقل سعراً", "أعلى سعراً",
+            "ما أرخص", "ما أغلى", "ما أفضل",
+            // English fallback
+            "cheapest", "most expensive", "lowest", "highest"
+    );
 
     @Override
     public boolean supports(String searchType) {
@@ -35,14 +43,15 @@ public class ArabicSortProcessor implements ChatProcessor {
 
     @Override
     public ProcessingResult process(ProcessingRequest request) {
-
         SearchIntent intent = request.getSearchIntent();
         log.info("[ArabicSortProcessor] START — direction={} category={} brand={}",
                 intent.getSortDirection(), intent.getCategory(), intent.getBrand());
 
         boolean ascending = !"desc".equals(intent.getSortDirection());
+        boolean singleResult = isSingleResultQuery(intent.getSemanticQuery());
 
-        // fetch from PostgreSQL directly — no vector search needed
+        log.info("[ArabicSortProcessor] singleResult={} ascending={}", singleResult, ascending);
+
         List<Product> products = fetchProducts(intent);
 
         if (products.isEmpty()) {
@@ -61,18 +70,19 @@ public class ArabicSortProcessor implements ChatProcessor {
                         : Double.compare(b.getPrice(), a.getPrice()))
                 .toList();
 
+        // ── Apply limit if single result query ────────────────────────────────
+        List<Product> result = singleResult ? List.of(sorted.get(0)) : sorted;
 
-        // build answer
-        String answer = sorted.stream()
-                .map(p -> p.getTitle() + " - " + p.getPrice() + " USD - " + p.getCategory())
+        String answer = result.stream()
+                .map(p -> p.getTitle() + " - $" + p.getPrice() + " - " + p.getCategory())
                 .collect(Collectors.joining("\n"));
 
-        List<String> matchedIds = sorted.stream()
+        List<String> matchedIds = result.stream()
                 .map(Product::getProductId)
                 .toList();
 
-        log.info("[ArabicSortProcessor] END — sorted={} direction={}",
-                sorted.size(), ascending ? "asc" : "desc");
+        log.info("[ArabicSortProcessor] END — returned={} direction={}",
+                result.size(), ascending ? "asc" : "desc");
 
         return ProcessingResult.builder()
                 .enrichedQuestion(intent.getSemanticQuery())
@@ -82,9 +92,13 @@ public class ArabicSortProcessor implements ChatProcessor {
                 .build();
     }
 
+    private boolean isSingleResultQuery(String query) {
+        if (query == null) return false;
+        String lower = query.toLowerCase();
+        return SINGLE_RESULT_KEYWORDS.stream().anyMatch(lower::contains);
+    }
 
     private List<Product> fetchProducts(SearchIntent intent) {
-        // category filter
         if (intent.getCategory() != null && intent.getBrand() != null) {
             log.info("[ArabicSortProcessor] fetching by category={} brand={}",
                     intent.getCategory(), intent.getBrand());
@@ -102,7 +116,6 @@ public class ArabicSortProcessor implements ChatProcessor {
             return productRepository.findActiveByBrand(intent.getBrand());
         }
 
-        // no filter — fetch all active products
         log.info("[ArabicSortProcessor] fetching all active products");
         return productRepository.findAllActive();
     }

@@ -28,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author: Abd-alrhman Alkraien.
@@ -177,7 +178,12 @@ public class ProductService {
                 }
 
                 TextSegment segment = TextSegment.from(content,
-                        Metadata.from("productId", product.getProductId()));
+                        Metadata.from(Map.of(
+                                "productId", product.getProductId(),
+                                "brand",     product.getBrand()     != null ? product.getBrand()    : "",
+                                "category",  product.getCategory()  != null ? product.getCategory() : "",
+                                "price",     String.valueOf(product.getPrice())
+                        )));
 
                 Embedding embedding = embeddingModel.embed(segment).content();
                 embeddingStore.add(embedding, segment);

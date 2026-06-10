@@ -180,15 +180,35 @@ public class EnglishSegmentProcessor implements ChatProcessor {
             case "comparison" -> template.formatted(
                     context, memorySection, userQuestion);
 
-            case "semantic" -> template.formatted(
-                    intent.getSemanticQuery(),
-                    intent.getMaxPrice() != null ? "- Max price: $" + intent.getMaxPrice() + "\n" : "",
-                    intent.getCategory() != null ? "- Category: " + intent.getCategory() + "\n" : "",
-                    intent.getMaxPrice() != null
-                            ? "Respect the price constraint — do NOT recommend products above $"
-                            + intent.getMaxPrice()
-                            : "There is NO price constraint — recommend the BEST product regardless of price",
-                    context, memorySection);
+            case "semantic" -> {
+
+                boolean singleProduct = filteredContext.getFilteredMatches().size() == 1;
+                String semanticMemory = singleProduct ? "" : memorySection;
+
+                String priceOrSingleRule = singleProduct
+                        ? "You have exactly ONE product. Describe why it matches the user request based ONLY on its listed features. Do NOT mention or compare with any other products."
+                        : intent.getMaxPrice() != null
+                        ? "Respect the price constraint — do NOT recommend products above $" + intent.getMaxPrice()
+                        : "There is NO price constraint — recommend the BEST product regardless of price";
+
+                yield template.formatted(
+                        intent.getSemanticQuery(),
+                        intent.getMaxPrice() != null ? "- Max price: $" + intent.getMaxPrice() + "\n" : "",
+                        intent.getCategory() != null ? "- Category: " + intent.getCategory() + "\n" : "",
+                        priceOrSingleRule,
+                        context,
+                        semanticMemory
+                );
+//                template.formatted(
+//                        intent.getSemanticQuery(),
+//                        intent.getMaxPrice() != null ? "- Max price: $" + intent.getMaxPrice() + "\n" : "",
+//                        intent.getCategory() != null ? "- Category: " + intent.getCategory() + "\n" : "",
+//                        intent.getMaxPrice() != null
+//                                ? "Respect the price constraint — do NOT recommend products above $"
+//                                + intent.getMaxPrice()
+//                                : "There is NO price constraint — recommend the BEST product regardless of price",
+//                        context, memorySection);
+            }
 
             default -> {
                 log.warn("[EnglishSegmentProcessor] unexpected searchType='{}' — using default prompt",

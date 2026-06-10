@@ -24,6 +24,8 @@ public class SearchIntent {
     private String category;
     private String brand;
     private String sortDirection;  // ← add this
+    private String excludedBrand;   // ← add this field
+    private Double maxSuggestPrice;  // ← price ceiling that never gets relaxed
 
     @Builder.Default
     private String semanticQuery = "";

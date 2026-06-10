@@ -94,12 +94,32 @@ public class ArabicSuggestionProcessor implements ChatProcessor {
                     step, relaxedIntent.getBrand(), relaxedIntent.getMaxPrice(), query);
 
             EmbeddingSearchRequest searchRequest = searchService.buildSearchRequest(relaxedIntent);
-
-            List<EmbeddingMatch<TextSegment>> matches = embeddingStore
-                    .search(searchRequest)
-                    .matches();
-
+            List<EmbeddingMatch<TextSegment>> matches = embeddingStore.search(searchRequest).matches();
             suggestContext = arabicFilterProcessor.filter(matches, relaxedIntent);
+
+            // ── Filter out excluded brand ─────────────────────────────────────────
+            String excludedBrand = relaxedIntent.getExcludedBrand();
+            if (excludedBrand != null && !excludedBrand.isBlank()) {
+                List<EmbeddingMatch<TextSegment>> filtered = suggestContext.getFilteredMatches()
+                        .stream()
+                        .filter(m -> {
+                            String brand = m.embedded().metadata().getString("brand");
+                            return brand == null || !brand.equalsIgnoreCase(excludedBrand);
+                        })
+                        .toList();
+
+                suggestContext = FilteredContext.builder()
+                        .filteredMatches(filtered)
+                        .context(filtered.stream()
+                                .map(m -> "[" + m.embedded().metadata().getString("id") + "] "
+                                        + m.embedded().text())
+                                .collect(Collectors.joining("\n")))
+                        .build();
+
+                log.info("[ArabicSuggestionProcessor] After excluding brand='{}': {} candidates",
+                        excludedBrand, suggestContext.getFilteredMatches().size());
+            }
+            // ─────────────────────────────────────────────────────────────────────
 
             log.info("[ArabicSuggestionProcessor] Step {} candidates: {}",
                     step, suggestContext.getFilteredMatches().size());
@@ -109,7 +129,6 @@ public class ArabicSuggestionProcessor implements ChatProcessor {
                 break;
             }
         }
-
         if (suggestContext.getFilteredMatches().isEmpty()) {
             log.info("[ArabicSuggestionProcessor] No candidates found after all relaxation steps");
             return ProcessingResult.builder()
@@ -120,10 +139,31 @@ public class ArabicSuggestionProcessor implements ChatProcessor {
                     .build();
         }
 
+        // ── Verify candidates are relevant to original query ──────────────────────
+        if (!isRelevantToQuery(suggestContext, originalIntent)) {
+            log.info("[EnglishSuggestionProcessor] Candidates not relevant to original query — returning not found");
+            return ProcessingResult.builder()
+                    .enrichedQuestion(originalIntent.getSemanticQuery())
+                    .type("suggest")
+                    .answer("I couldn't find any products matching your request. " +
+                            "We may not carry this type of product yet.")
+                    .matchedIds(List.of())
+                    .build();
+        }
 
         // cap to top 5 by score to avoid passing irrelevant products to LLM
+        // ── Sort by price ascending after relevance check ──────────────────────────
         List<EmbeddingMatch<TextSegment>> topMatches = suggestContext.getFilteredMatches().stream()
-                .sorted((a, b) -> Double.compare(b.score(), a.score()))
+                .sorted((a, b) -> {
+                    String priceA = a.embedded().metadata().getString("price");
+                    String priceB = b.embedded().metadata().getString("price");
+                    if (priceA == null || priceB == null) return 0;
+                    try {
+                        return Double.compare(Double.parseDouble(priceA), Double.parseDouble(priceB));
+                    } catch (NumberFormatException e) {
+                        return 0;
+                    }
+                })
                 .limit(5)
                 .toList();
 
@@ -170,5 +210,36 @@ public class ArabicSuggestionProcessor implements ChatProcessor {
                 .answer(answer.aiMessage().text())
                 .matchedIds(matchedIds)
                 .build();
+    }
+
+    private boolean isRelevantToQuery(FilteredContext context, SearchIntent originalIntent) {
+        if (context.getFilteredMatches().isEmpty()) return false;
+
+        String originalCategory = originalIntent.getCategory() != null
+                ? originalIntent.getCategory().toLowerCase() : "";
+
+        String originalQuery = originalIntent.getSemanticQuery() != null
+                ? originalIntent.getSemanticQuery().toLowerCase() : "";
+
+        if (!originalCategory.isBlank()) {
+            boolean categoryMatch = context.getFilteredMatches().stream()
+                    .anyMatch(m -> {
+                        String productCategory = m.embedded().metadata().getString("category");
+                        if (productCategory == null) return false;
+                        String productCatLower = productCategory.toLowerCase();
+                        // must match original category OR original query keywords
+                        return productCatLower.contains(originalCategory)
+                                || originalQuery.contains(productCatLower);
+                    });
+
+            if (!categoryMatch) {
+                log.info("[ArabicSuggestionProcessor] No products match category='{}' or query='{}'",
+                        originalCategory, originalQuery);
+                return false;
+            }
+            return true;
+        }
+
+        return true;
     }
 }

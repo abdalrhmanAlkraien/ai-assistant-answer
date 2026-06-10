@@ -49,11 +49,13 @@ public class EnglishMemoryProcessor implements ChatProcessor, MemoryContext {
 
         String[] matchedProducts = result.getMatchedIds().toArray(String[]::new);
 
-        String cleanAnswer = result.getAnswer()
+        String cleanAnswer = result.getAnswer() != null
+                ? result.getAnswer()
                 .replaceAll("(?m)^List all \\d+ products:.*$", "")
                 .replaceAll("(?m)^Format:.*$", "")
                 .replaceAll("(?m)^Product Name.*$", "")
-                .trim();
+                .trim()
+                : "";
 
 
         log.debug("[EnglishMemoryProcessor] Saving USER message='{}'", request.getUserId());

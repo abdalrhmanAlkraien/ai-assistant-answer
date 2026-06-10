@@ -42,45 +42,51 @@ public class SuggestionService {
     }
 
     public SearchIntent buildSuggestIntent(SearchIntent original) {
-        // Relaxation order: remove brand first, then price, then category
-        // Keep what's most important to the user, remove the most restrictive constraint
 
-        // Step 1: Remove brand — keep category + price
+        // preserve price ceiling from original intent — never relax it
+        Double priceCeiling = original.getMaxSuggestPrice() != null
+                ? original.getMaxSuggestPrice()
+                : original.getMaxPrice();  // first call — copy maxPrice as ceiling
+
+        // Step 1: Remove brand — keep category + price, remember excluded brand
         if (original.getBrand() != null) {
             return SearchIntent.builder()
                     .searchType("suggest")
                     .category(original.getCategory())
-                    .minPrice(original.getMinPrice())
-                    .maxPrice(original.getMaxPrice())
+                    .maxPrice(priceCeiling)        // ← keep price ceiling
                     .semanticQuery(original.getSemanticQuery())
+                    .excludedBrand(original.getBrand())
+                    .maxSuggestPrice(priceCeiling) // ← carry ceiling
                     .build();
         }
 
-        // Step 2: Remove price — keep category + brand
+        // Step 2: Remove price — keep category
         if (original.getMaxPrice() != null || original.getMinPrice() != null) {
             return SearchIntent.builder()
                     .searchType("suggest")
                     .category(original.getCategory())
-                    .brand(original.getBrand())
+                    .maxPrice(priceCeiling)        // ← keep price ceiling
                     .semanticQuery(original.getSemanticQuery())
+                    .excludedBrand(original.getExcludedBrand())
+                    .maxSuggestPrice(priceCeiling) // ← carry ceiling
                     .build();
         }
 
-        // Step 3: Remove category — keep brand + price
+        // Step 3: Remove category
         if (original.getCategory() != null) {
             return SearchIntent.builder()
                     .searchType("suggest")
-                    .brand(original.getBrand())
-                    .minPrice(original.getMinPrice())
-                    .maxPrice(original.getMaxPrice())
+                    .maxPrice(priceCeiling)        // ← keep price ceiling
                     .semanticQuery(original.getSemanticQuery())
+                    .excludedBrand(original.getExcludedBrand())
+                    .maxSuggestPrice(priceCeiling) // ← carry ceiling
                     .build();
         }
 
-        // Step 4: All constraints removed — pure semantic
+        // Step 4: Pure semantic
         return SearchIntent.builder()
                 .searchType("suggest")
+                .maxPrice(priceCeiling)
                 .semanticQuery(original.getSemanticQuery())
                 .build();
-    }
-}
+    }}
