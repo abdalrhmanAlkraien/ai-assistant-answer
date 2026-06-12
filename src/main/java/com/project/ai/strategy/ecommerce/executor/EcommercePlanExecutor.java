@@ -46,6 +46,28 @@ public class EcommercePlanExecutor implements PlanExecutor {
                                       MultimodalRequest request) {
 
         TokenTracker tracker = request.getTokenTracker();
+
+        // ── Handle clarification ──────────────────────────────────────────────────
+        if (plan.isRequiresClarification()) {
+            log.info("[PlanExecutor] requiresClarification=true — delegating to AmbiguityResolver");
+            // let the strategy handle it — return empty so EcommerceStrategy picks it up
+            return MultimodalResponse.builder()
+                    .type("clarification")
+                    .answer(plan.getClarificationContext() != null
+                            ? plan.getClarificationContext().getClarificationQuestion()
+                            : (plan.getLanguage() == Language.ARABIC
+                            ? "ما الذي تبحث عنه تحديداً؟"
+                            : "What exactly are you looking for?"))
+                    .matchProducts(List.of())
+                    .language(plan.getLanguage())
+                    .inputType(request.getInputType())
+                    .suggestedOptions(plan.getClarificationContext() != null
+                            ? plan.getClarificationContext().getSuggestedOptions()
+                            : List.of())
+                    .responseTime(java.time.LocalDateTime.now())
+                    .build();
+        }
+
         log.info("[PlanExecutor] START — steps={} parallel={} clarification={}",
                 plan.getSteps().size(),
                 plan.getSteps().stream().filter(ExecutionStep::isCanRunParallel).count(),
@@ -240,7 +262,7 @@ public class EcommercePlanExecutor implements PlanExecutor {
         stepRequest.setNormalizedText(question);
 
         SearchIntent stepIntent = SearchIntent.builder()
-                .searchType(resolveSearchTypeFromIntent(step.getIntentType()))
+                .searchType(resolveSearchTypeFromStep(step))
                 .semanticQuery(question)
                 .category(step.getCategory())
                 .brand(step.getBrand())
@@ -396,6 +418,22 @@ public class EcommercePlanExecutor implements PlanExecutor {
             case KNOWLEDGE -> "knowledge";
             case SUGGESTION -> "suggest";
             default -> "category";
+        };
+    }
+
+    private String resolveSearchTypeFromStep(ExecutionStep step) {
+        if (step.getBrand() != null && step.getCategory() != null) return "hybrid";
+        if (step.getBrand() != null)    return "brand";
+        if (step.getCategory() != null) return "category";
+        return switch (step.getIntentType()) {
+            case FILTER     -> "hybrid";
+            case SORT       -> "sort";
+            case PRICE      -> "price";
+            case SEMANTIC, RECOMMENDATION -> "semantic";
+            case COMPARISON -> "comparison";
+            case KNOWLEDGE  -> "knowledge";
+            case SUGGESTION -> "suggest";
+            default         -> "category";
         };
     }
 }

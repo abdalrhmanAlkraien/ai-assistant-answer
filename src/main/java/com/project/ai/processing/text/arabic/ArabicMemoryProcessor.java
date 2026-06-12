@@ -4,6 +4,7 @@ import com.project.ai.agents.Language;
 import com.project.ai.config.LangChain4jProperties;
 import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
+import com.project.ai.dto.SearchIntent;
 import com.project.ai.model.MessageRole;
 import com.project.ai.processing.ChatProcessor;
 import com.project.ai.processing.text.structure.IntentAnalyzer;
@@ -70,19 +71,38 @@ public class ArabicMemoryProcessor implements ChatProcessor, MemoryContext {
 
         String summarized = summarizeIfNeeded(cleanAnswer, result.getType());
 
+        // ── Add structured context prefix ─────────────────────────────────────
+        String contextPrefix = buildContextPrefix(request.getSearchIntent());
+        String memoryMessage = contextPrefix.isEmpty()
+                ? summarized
+                : contextPrefix + " " + summarized;
+
         memoryService.saveMemory(
                 request.getUserId(),
                 request.getSearchIntent(),
-                com.project.ai.model.MessageRole.AI,
-                summarized,
+                MessageRole.AI,
+                memoryMessage,
                 matchedProducts,
                 Language.ARABIC);
 
         log.debug("[ArabicMemoryProcessor] Saving matchedProducts={}", result.getMatchedIds());
-
         log.info("[ArabicMemoryProcessor] saveToMemory END");
     }
 
+    private String buildContextPrefix(SearchIntent intent) {
+        if (intent == null) return "";
+        StringBuilder prefix = new StringBuilder();
+        if (intent.getSearchType() != null) {
+            prefix.append("[type:").append(intent.getSearchType()).append("]");
+        }
+        if (intent.getBrand() != null && !intent.getBrand().isBlank()) {
+            prefix.append("[brand:").append(intent.getBrand()).append("]");
+        }
+        if (intent.getCategory() != null && !intent.getCategory().isBlank()) {
+            prefix.append("[category:").append(intent.getCategory()).append("]");
+        }
+        return prefix.toString();
+    }
     private String summarizeIfNeeded(String answer, String type) {
         if (answer == null || answer.isBlank()) return "";
 

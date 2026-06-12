@@ -52,11 +52,48 @@ public class RequestAnalyzer {
             "مع السلامة", "أهلاً وسهلاً", "هلا", "هلو", "هاي"
     );
 
+    private static final Set<String> SECURITY_KEYWORDS = Set.of(
+            // english
+            "password", "secret", "api key", "token", "credentials", "endpoint",
+            "database", "db password", "connection string", "backend", "architecture",
+            "framework", "what llm", "what model", "who made you", "system prompt",
+            "ignore previous", "act as dan", "jailbreak", "prompt injection",
+            "what ai", "your instructions", "your rules", "base url", "internal url",
+            "source code", "git", "environment variable", "aws", "docker", "server",
+            // arabic
+            "كلمة مرور", "مفتاح", "قاعدة البيانات", "الـ llm", "النموذج",
+            "من صنعك", "بنية النظام", "تجاهل التعليمات", "الـ api",
+            "الروابط الداخلية", "مفاتيح سرية", "البنية التحتية"
+    );
+
     public RequestAnalysis analyze(MultimodalRequest request, String memoryContext) {
 
 
         TokenTracker tracker = request.getTokenTracker();
         String rawQuestion = request.getTextQuestion();
+
+        if (isSecurityQuestion(rawQuestion)) {
+            log.warn("[RequestAnalyzer] SECURITY question detected — skipping LLM call question='{}'",
+                    rawQuestion);
+            return RequestAnalysis.builder()
+                    .enrichedQuestion(rawQuestion)
+                    .language(request.getDetectedLanguage())
+                    .complexity(ComplexityLevel.SIMPLE)
+                    .intentTypes(List.of(IntentType.KNOWLEDGE))
+                    .isMultiStep(false)
+                    .isAmbiguous(false)
+                    .requiresMemoryContext(false)
+                    .relatedToPreviousContext(false)
+                    .normalizedQuestion(rawQuestion)
+                    .searchType("security")
+                    .category(null)
+                    .brand(null)
+                    .minPrice(null)
+                    .maxPrice(null)
+                    .sortDirection(null)
+                    .singleResult(false)
+                    .build();
+        }
 
         // RequestAnalyzer.analyze() — add at the top before LLM call
         if (isGreeting(rawQuestion, request.getDetectedLanguage())) {
@@ -186,6 +223,7 @@ public class RequestAnalyzer {
                 .minPrice(null)
                 .maxPrice(null)
                 .sortDirection(null)
+                .singleResult(false)  // ← add this
                 .build();
     }
 
@@ -210,7 +248,7 @@ public class RequestAnalyzer {
                 node.get("relatedToPreviousContext").asBoolean(),
                 getTextOrNull(node, "searchType"),
                 getCategoryOrNull(node, "category"),
-                getTextOrNull(node, "brand"),
+                getBrandOrNull(node, "brand"),
                 getDoubleOrNull(node, "minPrice"),
                 getDoubleOrNull(node, "maxPrice"),
                 getTextOrNull(node, "sortDirection"),
@@ -252,8 +290,31 @@ public class RequestAnalyzer {
         // LLM returned string "earbuds,earphones"
         return n.asText();
     }
+
+    private String getBrandOrNull(JsonNode node, String field) {
+        JsonNode n = node.get(field);
+        if (n == null || n.isNull()) return null;
+        // LLM returned array ["Samsung", "Apple"]
+        if (n.isArray()) {
+            StringBuilder sb = new StringBuilder();
+            n.forEach(item -> {
+                if (!sb.isEmpty()) sb.append(",");
+                sb.append(item.asText());
+            });
+            return sb.toString();
+        }
+        // LLM returned string "Samsung,Apple"
+        return n.asText();
+    }
+
     private boolean getBooleanOrFalse(JsonNode node, String field) {
         JsonNode n = node.get(field);
         return (n != null && !n.isNull()) && n.asBoolean();
+    }
+
+    private boolean isSecurityQuestion(String question) {
+        if (question == null) return false;
+        String lower = question.toLowerCase();
+        return SECURITY_KEYWORDS.stream().anyMatch(lower::contains);
     }
 }

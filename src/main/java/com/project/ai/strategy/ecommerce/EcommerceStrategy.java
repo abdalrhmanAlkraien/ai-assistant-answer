@@ -1,5 +1,6 @@
 package com.project.ai.strategy.ecommerce;
 
+import com.project.ai.agents.Language;
 import com.project.ai.dto.MultimodalRequest;
 import com.project.ai.dto.MultimodalResponse;
 import com.project.ai.model.planner.ClarificationContext;
@@ -48,6 +49,26 @@ public class EcommerceStrategy implements BusinessStrategy {
 
         log.info("[EcommerceStrategy] START — complexity={} multiStep={}",
                 analysis.getComplexity(), analysis.isMultiStep());
+
+        // ── Security interceptor ──────────────────────────────────────────────────
+        if ("security".equals(analysis.getSearchType())) {
+            log.warn("[EcommerceStrategy] SECURITY question detected — userId={} question='{}'",
+                    request.getUserId(), request.getTextQuestion());
+
+            String safeResponse = request.getDetectedLanguage() == Language.ARABIC
+                    ? "عذراً، لا يمكنني المساعدة في هذا الطلب."
+                    : "Sorry, I cannot help with that request.";
+
+            return MultimodalResponse.builder()
+                    .type("security")
+                    .answer(safeResponse)
+                    .matchProducts(List.of())
+                    .language(request.getDetectedLanguage())
+                    .inputType(request.getInputType())
+                    .suggestedOptions(List.of())
+                    .responseTime(java.time.LocalDateTime.now())
+                    .build();
+        }
 
         // clarification — no tier, no plan
         if (analysis.isAmbiguous()) {

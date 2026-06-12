@@ -40,7 +40,10 @@ public class EcommerceFilterProcessor {
                     intent.getMaxPrice() != null ? intent.getMaxPrice() : Double.MAX_VALUE,
                     PageRequest.of(0, maxResults));
 
-            case "category" -> productRepository.findActiveByCategory(
+            case "category" -> intent.getBrand() != null
+                    ? productRepository.findActiveByCategoryAndBrand(
+                    intent.getCategory(), intent.getBrand(), PageRequest.of(0, maxResults))
+                    : productRepository.findActiveByCategory(
                     intent.getCategory(), PageRequest.of(0, maxResults));
 
             case "brand" -> intent.getCategory() != null

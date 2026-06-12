@@ -98,6 +98,7 @@ public class MemoryService {
 
         return memoryRepository.findRecentMessages(userId, appProperties.getMemory().getContext());
     }
+
     public void saveMemory(final String userId,
                            final SearchIntent searchIntent,
                            final MessageRole role,
