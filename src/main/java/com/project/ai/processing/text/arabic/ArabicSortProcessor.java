@@ -8,6 +8,8 @@ import com.project.ai.processing.ChatProcessor;
 import com.project.ai.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -25,16 +27,8 @@ public class ArabicSortProcessor implements ChatProcessor {
 
     private final ProductRepository productRepository;
 
-    // ── Keywords that imply a single result ──────────────────────────────────
-    private static final List<String> SINGLE_RESULT_KEYWORDS = List.of(
-            // Arabic
-            "الأرخص", "أرخص", "الأغلى", "أغلى",
-            "الأفضل", "أفضل", "الأقل سعراً", "الأعلى سعراً",
-            "الأقل سعرا", "الأعلى سعرا", "أقل سعراً", "أعلى سعراً",
-            "ما أرخص", "ما أغلى", "ما أفضل",
-            // English fallback
-            "cheapest", "most expensive", "lowest", "highest"
-    );
+    @Value("${rag.search.max-results:5}")
+    private int maxResults;
 
     @Override
     public boolean supports(String searchType) {
@@ -43,12 +37,14 @@ public class ArabicSortProcessor implements ChatProcessor {
 
     @Override
     public ProcessingResult process(ProcessingRequest request) {
+
         SearchIntent intent = request.getSearchIntent();
         log.info("[ArabicSortProcessor] START — direction={} category={} brand={}",
                 intent.getSortDirection(), intent.getCategory(), intent.getBrand());
 
         boolean ascending = !"desc".equals(intent.getSortDirection());
-        boolean singleResult = isSingleResultQuery(intent.getSemanticQuery());
+
+        boolean singleResult = intent.isSingleResult();
 
         log.info("[ArabicSortProcessor] singleResult={} ascending={}", singleResult, ascending);
 
@@ -92,31 +88,37 @@ public class ArabicSortProcessor implements ChatProcessor {
                 .build();
     }
 
-    private boolean isSingleResultQuery(String query) {
-        if (query == null) return false;
-        String lower = query.toLowerCase();
-        return SINGLE_RESULT_KEYWORDS.stream().anyMatch(lower::contains);
-    }
-
     private List<Product> fetchProducts(SearchIntent intent) {
         if (intent.getCategory() != null && intent.getBrand() != null) {
             log.info("[ArabicSortProcessor] fetching by category={} brand={}",
                     intent.getCategory(), intent.getBrand());
             return productRepository.findActiveByCategoryAndBrand(
-                    intent.getCategory(), intent.getBrand());
+                    intent.getCategory(), intent.getBrand(), PageRequest.of(0, maxResults));
         }
 
         if (intent.getCategory() != null) {
             log.info("[ArabicSortProcessor] fetching by category={}", intent.getCategory());
-            return productRepository.findActiveByCategory(intent.getCategory());
+            return productRepository.findActiveByCategory(intent.getCategory(), PageRequest.of(0, maxResults));
         }
 
         if (intent.getBrand() != null) {
             log.info("[ArabicSortProcessor] fetching by brand={}", intent.getBrand());
-            return productRepository.findActiveByBrand(intent.getBrand());
+            return productRepository.findActiveByBrand(intent.getBrand(), PageRequest.of(0, maxResults));
         }
 
         log.info("[ArabicSortProcessor] fetching all active products");
-        return productRepository.findAllActive();
+        return productRepository.findAllActive(PageRequest.of(0, maxResults));
+    }
+
+    private boolean enrichedQuestionImpliesSingle(String enriched) {
+        if (enriched == null) return false;
+        String lower = enriched.toLowerCase();
+        // "what is the cheapest" / "cheapest laptop" patterns
+        return lower.startsWith("cheapest")
+                || lower.startsWith("most expensive")
+                || lower.contains("what is the cheapest")
+                || lower.contains("what is the most expensive")
+                || lower.contains("which is the cheapest")
+                || lower.contains("which is the most expensive");
     }
 }

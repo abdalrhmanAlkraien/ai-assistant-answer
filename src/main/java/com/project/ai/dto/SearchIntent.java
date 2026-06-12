@@ -30,5 +30,5 @@ public class SearchIntent {
     @Builder.Default
     private String semanticQuery = "";
     private String semanticQueryArabic;      // ← ADD THIS
-
+    private boolean singleResult;
 }

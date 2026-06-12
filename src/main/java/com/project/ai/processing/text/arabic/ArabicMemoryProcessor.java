@@ -86,21 +86,17 @@ public class ArabicMemoryProcessor implements ChatProcessor, MemoryContext {
     private String summarizeIfNeeded(String answer, String type) {
         if (answer == null || answer.isBlank()) return "";
 
-        // listing types — already short, no summarization needed
+        // listing types — truncate only
         if (Set.of("category", "brand", "price", "hybrid", "sort").contains(type)) {
-            return answer.length() > 300
-                    ? answer.substring(0, 300) + "..."
+            return answer.length() > 500
+                    ? answer.substring(0, 500) + "..."
                     : answer;
         }
 
-        // knowledge, semantic, comparison — may be verbose, summarize
-        if (answer.length() > 300) {
-            log.info("[ArabicMemoryProcessor] summarizing answer length={} type={}",
-                    answer.length(), type);
-            return summarize(answer);
-        }
-
-        return answer;
+        // semantic, comparison, knowledge — truncate at 800, no LLM call
+        return answer.length() > 800
+                ? answer.substring(0, 800) + "..."
+                : answer;
     }
 
     private String summarize(String answer) {

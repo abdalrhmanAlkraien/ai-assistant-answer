@@ -5,9 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.ai.agents.Language;
 import com.project.ai.config.LangChain4jProperties;
 import com.project.ai.config.PromptKeys;
-import com.project.ai.loader.PromptLoader;
 import com.project.ai.dto.MultimodalRequest;
 import com.project.ai.dto.TokenTracker;
+import com.project.ai.loader.PromptLoader;
 import com.project.ai.model.planner.AnalysisJson;
 import com.project.ai.model.planner.ComplexityLevel;
 import com.project.ai.model.planner.IntentType;
@@ -39,7 +39,6 @@ public class RequestAnalyzer {
     private final ChatModel chatModel;
     private final LangChain4jProperties properties;
     private final PromptLoader promptLoader;      // ← inject
-
 
     private static final Set<String> ENGLISH_GREETINGS = Set.of(
             "hi", "hello", "hey", "good morning", "good afternoon", "good evening",
@@ -78,6 +77,7 @@ public class RequestAnalyzer {
                     .minPrice(null)
                     .maxPrice(null)
                     .sortDirection(null)
+                    .singleResult(true)
                     .build();
         }
 
@@ -95,6 +95,7 @@ public class RequestAnalyzer {
                 : PromptKeys.REQUEST_ANALYZER_ENGLISH;
 
         String promptTemplate = promptLoader.get(promptKey);
+
         String prompt = promptTemplate.formatted(memorySection, rawQuestion);
 
         long start = System.currentTimeMillis();
@@ -147,6 +148,7 @@ public class RequestAnalyzer {
                     .minPrice(parsed.minPrice())
                     .maxPrice(parsed.maxPrice())
                     .sortDirection(parsed.sortDirection())
+                    .singleResult(parsed.singleResult())
                     .build();
 
             log.info("[RequestAnalyzer] enriched='{}' complexity={} intents={} multiStep={} ambiguous={}",
@@ -207,11 +209,12 @@ public class RequestAnalyzer {
                 node.get("requiresMemoryContext").asBoolean(),
                 node.get("relatedToPreviousContext").asBoolean(),
                 getTextOrNull(node, "searchType"),
-                getTextOrNull(node, "category"),
+                getCategoryOrNull(node, "category"),
                 getTextOrNull(node, "brand"),
                 getDoubleOrNull(node, "minPrice"),
                 getDoubleOrNull(node, "maxPrice"),
-                getTextOrNull(node, "sortDirection")
+                getTextOrNull(node, "sortDirection"),
+                getBooleanOrFalse(node, "singleResult")  // ← add
         );
     }
 
@@ -232,5 +235,25 @@ public class RequestAnalyzer {
             return ARABIC_GREETINGS.contains(normalized);
         }
         return ENGLISH_GREETINGS.contains(normalized);
+    }
+
+    private String getCategoryOrNull(JsonNode node, String field) {
+        JsonNode n = node.get(field);
+        if (n == null || n.isNull()) return null;
+        // LLM returned array ["earbuds", "earphones"]
+        if (n.isArray()) {
+            StringBuilder sb = new StringBuilder();
+            n.forEach(item -> {
+                if (!sb.isEmpty()) sb.append(",");
+                sb.append(item.asText());
+            });
+            return sb.toString();
+        }
+        // LLM returned string "earbuds,earphones"
+        return n.asText();
+    }
+    private boolean getBooleanOrFalse(JsonNode node, String field) {
+        JsonNode n = node.get(field);
+        return (n != null && !n.isNull()) && n.asBoolean();
     }
 }

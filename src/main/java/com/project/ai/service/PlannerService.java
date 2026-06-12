@@ -95,6 +95,7 @@ public class PlannerService {
                 .minPrice(analysis.getMinPrice())
                 .maxPrice(analysis.getMaxPrice())
                 .sortDirection(analysis.getSortDirection())
+                .singleResult(analysis.getSingleResult())
                 .build();
     }
 

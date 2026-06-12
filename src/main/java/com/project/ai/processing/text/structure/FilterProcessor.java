@@ -5,6 +5,7 @@ import com.project.ai.dto.SearchIntent;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
@@ -21,6 +22,9 @@ import java.util.stream.Collectors;
 @Service
 @Log4j2
 public class FilterProcessor {
+
+    @Value("${rag.search.max-results:5}")
+    private int maxResults;
 
     public FilteredContext filter(List<EmbeddingMatch<TextSegment>> matches, SearchIntent intent) {
         log.info("[FilterProcessor] START — type={}", intent.getSearchType());
@@ -185,7 +189,16 @@ public class FilterProcessor {
             default -> matches;
         };
 
-        String context = filtered.stream()
+        // ── Apply limit after filtering ───────────────────────────────────────
+
+        List<EmbeddingMatch<TextSegment>> limited = filtered.stream()
+                .limit(maxResults)
+                .toList();
+
+        log.info("[FilterProcessor] END — filtered={} limited={} maxResults={}",
+                filtered.size(), limited.size(), maxResults);
+
+        String context = limited.stream()
                 .map(match -> "[" + match.embedded().metadata().getString("productId") + "] "
                         + match.embedded().text())
                 .collect(Collectors.joining("\n"));
@@ -193,7 +206,7 @@ public class FilterProcessor {
 
         return FilteredContext.builder()
                 .context(context)
-                .filteredMatches(filtered)
+                .filteredMatches(limited)
                 .build();
     }
 

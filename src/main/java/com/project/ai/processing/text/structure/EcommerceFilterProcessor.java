@@ -6,6 +6,8 @@ import com.project.ai.model.Product;
 import com.project.ai.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,7 +24,8 @@ import java.util.stream.Collectors;
 public class EcommerceFilterProcessor {
 
     private final ProductRepository productRepository;
-
+    @Value("${rag.search.max-results:5}")
+    private int maxResults;
 
     public FilteredContext filter(SearchIntent intent) {
 
@@ -34,15 +37,16 @@ public class EcommerceFilterProcessor {
 
             case "price" -> productRepository.findActiveByPriceRange(
                     intent.getMinPrice() != null ? intent.getMinPrice() : 0,
-                    intent.getMaxPrice() != null ? intent.getMaxPrice() : Double.MAX_VALUE);
+                    intent.getMaxPrice() != null ? intent.getMaxPrice() : Double.MAX_VALUE,
+                    PageRequest.of(0, maxResults));
 
             case "category" -> productRepository.findActiveByCategory(
-                    intent.getCategory());
+                    intent.getCategory(), PageRequest.of(0, maxResults));
 
             case "brand" -> intent.getCategory() != null
                     ? productRepository.findActiveByCategoryAndBrand(
-                    intent.getCategory(), intent.getBrand())
-                    : productRepository.findActiveByBrand(intent.getBrand());
+                    intent.getCategory(), intent.getBrand(), PageRequest.of(0, maxResults))
+                    : productRepository.findActiveByBrand(intent.getBrand(), PageRequest.of(0, maxResults));
 
             case "hybrid" -> queryHybrid(intent);
 
@@ -65,25 +69,28 @@ public class EcommerceFilterProcessor {
                     intent.getCategory(),
                     intent.getBrand(),
                     intent.getMinPrice() != null ? intent.getMinPrice() : 0,
-                    intent.getMaxPrice() != null ? intent.getMaxPrice() : Double.MAX_VALUE);
+                    intent.getMaxPrice() != null ? intent.getMaxPrice() : Double.MAX_VALUE,
+                    PageRequest.of(0, maxResults));
         }
         if (intent.getCategory() != null
                 && (intent.getMinPrice() != null || intent.getMaxPrice() != null)) {
             return productRepository.findActiveByCategoryAndPrice(
                     intent.getCategory(),
                     intent.getMinPrice() != null ? intent.getMinPrice() : 0,
-                    intent.getMaxPrice() != null ? intent.getMaxPrice() : Double.MAX_VALUE);
+                    intent.getMaxPrice() != null ? intent.getMaxPrice() : Double.MAX_VALUE,
+                    PageRequest.of(0, maxResults));
         }
         if (intent.getBrand() != null
                 && (intent.getMinPrice() != null || intent.getMaxPrice() != null)) {
             return productRepository.findActiveByBrandAndPrice(
                     intent.getBrand(),
                     intent.getMinPrice() != null ? intent.getMinPrice() : 0,
-                    intent.getMaxPrice() != null ? intent.getMaxPrice() : Double.MAX_VALUE);
+                    intent.getMaxPrice() != null ? intent.getMaxPrice() : Double.MAX_VALUE,
+                    PageRequest.of(0, maxResults));
         }
         if (intent.getCategory() != null && intent.getBrand() != null) {
             return productRepository.findActiveByCategoryAndBrand(
-                    intent.getCategory(), intent.getBrand());
+                    intent.getCategory(), intent.getBrand(), PageRequest.of(0, maxResults));
         }
         return List.of();
     }

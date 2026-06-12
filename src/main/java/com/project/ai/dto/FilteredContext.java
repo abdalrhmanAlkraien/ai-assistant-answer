@@ -23,7 +23,7 @@ public class FilteredContext {
 
     private String context;
     private List<EmbeddingMatch<TextSegment>> filteredMatches;
-    private List<com.project.ai.model.Product> products;    // ← add for SQL results
+    private List<Product> products;    // ← add for SQL results
 
     // helper — works for both vector and SQL
     public boolean isEmpty() {

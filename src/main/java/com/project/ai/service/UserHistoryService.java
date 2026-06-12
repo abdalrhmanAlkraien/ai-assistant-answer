@@ -93,7 +93,8 @@ public class UserHistoryService {
         log.info("[UserHistoryService] Clearing all history for userId={}", userId);
 
         if (!memoryRepository.existsByUserId(userId)) {
-            throw new IllegalArgumentException("No history found for userId: " + userId);
+            log.info("[UserHistoryService] No history found for userId: {} — skipping", userId);
+            return;
         }
 
         memoryRepository.deleteAllByUserId(userId);

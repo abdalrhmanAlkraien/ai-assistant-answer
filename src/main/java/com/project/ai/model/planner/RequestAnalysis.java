@@ -32,4 +32,5 @@ public class RequestAnalysis {
     private final Double minPrice;
     private final Double maxPrice;
     private final String sortDirection;
+    private final Boolean singleResult;
 }

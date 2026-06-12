@@ -8,6 +8,8 @@ import com.project.ai.processing.ChatProcessor;
 import com.project.ai.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -24,6 +26,9 @@ import java.util.stream.Collectors;
 public class EnglishSortProcessor implements ChatProcessor {
 
     private final ProductRepository productRepository;
+
+    @Value("${rag.search.max-results:5}")
+    private int maxResults;
 
     private static final List<String> SINGLE_RESULT_KEYWORDS = List.of(
             "cheapest", "most expensive", "the best", "the worst",
@@ -42,7 +47,7 @@ public class EnglishSortProcessor implements ChatProcessor {
                 intent.getSortDirection(), intent.getCategory(), intent.getBrand());
 
         boolean ascending = !"desc".equals(intent.getSortDirection());
-        boolean singleResult = isSingleResultQuery(intent.getSemanticQuery());
+        boolean singleResult = intent.isSingleResult();
 
         log.info("[EnglishSortProcessor] singleResult={} ascending={}", singleResult, ascending);
 
@@ -97,20 +102,20 @@ public class EnglishSortProcessor implements ChatProcessor {
             log.info("[EnglishSortProcessor] fetching by category={} brand={}",
                     intent.getCategory(), intent.getBrand());
             return productRepository.findActiveByCategoryAndBrand(
-                    intent.getCategory(), intent.getBrand());
+                    intent.getCategory(), intent.getBrand(), PageRequest.of(0, maxResults));
         }
 
         if (intent.getCategory() != null) {
             log.info("[EnglishSortProcessor] fetching by category={}", intent.getCategory());
-            return productRepository.findActiveByCategory(intent.getCategory());
+            return productRepository.findActiveByCategory(intent.getCategory(), PageRequest.of(0, maxResults));
         }
 
         if (intent.getBrand() != null) {
             log.info("[EnglishSortProcessor] fetching by brand={}", intent.getBrand());
-            return productRepository.findActiveByBrand(intent.getBrand());
+            return productRepository.findActiveByBrand(intent.getBrand(), PageRequest.of(0, maxResults));
         }
 
         log.info("[EnglishSortProcessor] fetching all active products");
-        return productRepository.findAllActive();
+        return productRepository.findAllActive(PageRequest.of(0, maxResults));
     }
 }

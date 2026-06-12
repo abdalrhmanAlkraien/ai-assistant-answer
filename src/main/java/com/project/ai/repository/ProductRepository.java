@@ -1,6 +1,7 @@
 package com.project.ai.repository;
 
 import com.project.ai.model.Product;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -17,6 +18,7 @@ import java.util.List;
 @Repository
 public interface ProductRepository extends JpaRepository<Product, String> {
 
+
     @Query("SELECT DISTINCT p.brand FROM Product p WHERE p.brand IS NOT NULL AND p.active = true ORDER BY p.brand")
     List<String> findAllActiveBrands();
 
@@ -32,40 +34,48 @@ public interface ProductRepository extends JpaRepository<Product, String> {
     @Query("SELECT p FROM Product p WHERE p.active = true ORDER BY p.price ASC")
     List<Product> findAllActive();
 
+    @Query("SELECT p FROM Product p WHERE p.active = true ORDER BY p.price ASC")
+    List<Product> findAllActive(Pageable pageable);
+
     @Query("SELECT p FROM Product p WHERE p.active = true AND LOWER(p.category) = LOWER(:category)")
-    List<Product> findActiveByCategory(@Param("category") String category);
+    List<Product> findActiveByCategory(@Param("category") String category, Pageable pageable);
 
     @Query("SELECT p FROM Product p WHERE p.active = true AND LOWER(p.brand) = LOWER(:brand)")
-    List<Product> findActiveByBrand(@Param("brand") String brand);
+    List<Product> findActiveByBrand(@Param("brand") String brand, Pageable pageable);
 
     @Query("SELECT p FROM Product p WHERE p.active = true AND LOWER(p.category) = LOWER(:category) AND LOWER(p.brand) = LOWER(:brand)")
     List<Product> findActiveByCategoryAndBrand(
             @Param("category") String category,
-            @Param("brand") String brand);
+            @Param("brand") String brand,
+            Pageable pageable);
 
     @Query("SELECT p FROM Product p WHERE p.active = true AND p.price >= :min AND p.price <= :max")
     List<Product> findActiveByPriceRange(
             @Param("min") Double min,
-            @Param("max") Double max);
+            @Param("max") Double max,
+            Pageable pageable);
 
     @Query("SELECT p FROM Product p WHERE p.active = true AND LOWER(p.category) = LOWER(:category) AND p.price >= :min AND p.price <= :max")
     List<Product> findActiveByCategoryAndPrice(
             @Param("category") String category,
             @Param("min") Double min,
-            @Param("max") Double max);
+            @Param("max") Double max,
+            Pageable pageable);
 
     @Query("SELECT p FROM Product p WHERE p.active = true AND LOWER(p.brand) = LOWER(:brand) AND p.price >= :min AND p.price <= :max")
     List<Product> findActiveByBrandAndPrice(
             @Param("brand") String brand,
             @Param("min") Double min,
-            @Param("max") Double max);
+            @Param("max") Double max,
+            Pageable pageable);
 
     @Query("SELECT p FROM Product p WHERE p.active = true AND LOWER(p.category) = LOWER(:category) AND LOWER(p.brand) = LOWER(:brand) AND p.price >= :min AND p.price <= :max")
     List<Product> findActiveByAllFilters(
             @Param("category") String category,
             @Param("brand") String brand,
             @Param("min") Double min,
-            @Param("max") Double max);
+            @Param("max") Double max,
+            Pageable pageable);
 
     @Query("SELECT p FROM Product p WHERE p.active = true AND p.productId IN :ids")
     List<Product> findActiveByProductIds(@Param("ids") List<String> ids);
@@ -73,7 +83,6 @@ public interface ProductRepository extends JpaRepository<Product, String> {
     @Modifying
     @Query("DELETE FROM Product p WHERE p.productId IN :ids")
     void deleteAllByProductIds(@Param("ids") List<String> ids);
-
 
     Long countByActiveTrue();
 }

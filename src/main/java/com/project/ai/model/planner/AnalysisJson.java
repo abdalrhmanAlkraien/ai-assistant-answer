@@ -20,6 +20,7 @@ public record AnalysisJson(
         String brand,
         Double minPrice,
         Double maxPrice,
-        String sortDirection
+        String sortDirection,
+        boolean singleResult  // ← add
 ) {
 }

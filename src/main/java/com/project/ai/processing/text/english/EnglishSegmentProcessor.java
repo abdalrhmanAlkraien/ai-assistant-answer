@@ -199,15 +199,6 @@ public class EnglishSegmentProcessor implements ChatProcessor {
                         context,
                         semanticMemory
                 );
-//                template.formatted(
-//                        intent.getSemanticQuery(),
-//                        intent.getMaxPrice() != null ? "- Max price: $" + intent.getMaxPrice() + "\n" : "",
-//                        intent.getCategory() != null ? "- Category: " + intent.getCategory() + "\n" : "",
-//                        intent.getMaxPrice() != null
-//                                ? "Respect the price constraint — do NOT recommend products above $"
-//                                + intent.getMaxPrice()
-//                                : "There is NO price constraint — recommend the BEST product regardless of price",
-//                        context, memorySection);
             }
 
             default -> {
