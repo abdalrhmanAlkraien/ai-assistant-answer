@@ -24,4 +24,7 @@ public class PromptSummaryDto {
     private boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String  description;
+    private String  updatedBy;
+    private String  changeReason;
 }

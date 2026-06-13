@@ -70,4 +70,9 @@ public class PromptLoader {
         promptCache.clear();
         loadAll();
     }
+
+    public void evict(String promptKey) {
+        promptCache.remove(promptKey);
+        log.info("[PromptLoader] Evicted prompt key='{}' from cache", promptKey);
+    }
 }

@@ -1,37 +1,29 @@
-package com.project.ai.dto;
+package com.project.ai.dto.prompt;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
  * @author: Abd-alrhman Alkraien.
- * @Date: 28/05/2026
- * @Time: 1:22 AM
+ * @Date: 13/06/2026
+ * @Time: 3:57 PM
  */
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 @Builder
-public class PromptDetailDto {
-
-    private Long id;
-    private String businessName;
-    private String promptKey;
-    private String promptTemplate;
+public class PromptVersionDto {
+    private Long    id;
+    private String  promptKey;
     private Integer version;
     private boolean isActive;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
     private String  description;
     private String  updatedBy;
     private String  changeReason;
     private BigDecimal evalScore;
     private LocalDateTime evalRunAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private LocalDateTime deactivatedAt;
-
 }

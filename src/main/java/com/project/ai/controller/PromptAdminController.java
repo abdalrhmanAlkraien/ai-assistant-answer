@@ -4,6 +4,9 @@ import com.project.ai.dto.PromptCreateRequest;
 import com.project.ai.dto.PromptDetailDto;
 import com.project.ai.dto.PromptStatsDto;
 import com.project.ai.dto.PromptSummaryDto;
+import com.project.ai.dto.prompt.PromptRollbackResponse;
+import com.project.ai.dto.prompt.PromptUpdateRequest;
+import com.project.ai.dto.prompt.PromptVersionDto;
 import com.project.ai.service.PromptAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -64,11 +67,11 @@ public class PromptAdminController {
                     required = true,
                     content = @Content(schema = @Schema(type = "string", example = "You are an e-commerce assistant. Question: %s"))
             )
-            @RequestBody String newPromptTemplate) {
+            @RequestBody PromptUpdateRequest newPromptTemplate) {
 
         log.info("[PromptAdminController] Updating prompt key='{}'", promptKey);
 
-        promptAdminService.updatePrompt(promptKey, newPromptTemplate);
+        promptAdminService.updatePromptVersion(promptKey, newPromptTemplate);
 
         return ResponseEntity.ok("Prompt updated and reloaded: " + promptKey);
     }
@@ -92,8 +95,12 @@ public class PromptAdminController {
     @ApiResponse(responseCode = "200", description = "Prompts retrieved")
     @GetMapping
     public ResponseEntity<Page<PromptSummaryDto>> getAllPrompts(
-            @PageableDefault(size = 20, sort = "businessName") Pageable pageable) {
-        return ResponseEntity.ok(promptAdminService.getAllPrompts(pageable));
+            @Parameter(description = "Filter by prompt key e.g. request_analyzer_arabic")
+            @RequestParam(required = false) String promptKey,
+            @Parameter(description = "Filter by status: true=active only, false=inactive only, omit=all")
+            @RequestParam(required = false) Boolean active,
+            @PageableDefault(size = 20, sort = "promptKey") Pageable pageable) {
+        return ResponseEntity.ok(promptAdminService.getAllPrompts(promptKey, active, pageable));
     }
 
     @Operation(
@@ -175,5 +182,50 @@ public class PromptAdminController {
     @GetMapping("/stats")
     public ResponseEntity<PromptStatsDto> getStats() {
         return ResponseEntity.ok(promptAdminService.getStats());
+    }
+
+    @Operation(
+            summary = "Create new version of existing prompt",
+            description = "Deactivates current version and creates a new active version. Old version kept for history and rollback."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "New version created and loaded"),
+            @ApiResponse(responseCode = "404", description = "Prompt key not found", content = @Content)
+    })
+    @PutMapping("/{promptKey}/version")
+    public ResponseEntity<PromptDetailDto> updatePromptVersion(
+            @Parameter(description = "Prompt key e.g. request_analyzer_arabic", required = true)
+            @PathVariable String promptKey,
+            @RequestBody @Valid PromptUpdateRequest request) {
+        log.info("[PromptAdminController] Creating new version for key='{}'", promptKey);
+        return ResponseEntity.ok(promptAdminService.updatePromptVersion(promptKey, request));
+    }
+
+    @Operation(
+            summary = "Get prompt version history",
+            description = "Returns all versions of a prompt ordered newest first"
+    )
+    @ApiResponse(responseCode = "200", description = "History retrieved")
+    @GetMapping("/{promptKey}/history")
+    public ResponseEntity<List<PromptVersionDto>> getHistory(
+            @Parameter(description = "Prompt key", required = true)
+            @PathVariable String promptKey) {
+        return ResponseEntity.ok(promptAdminService.getHistory(promptKey));
+    }
+
+    @Operation(
+            summary = "Rollback prompt to previous version",
+            description = "Deactivates current version and reactivates the previous one. Reloads cache immediately."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Rolled back successfully"),
+            @ApiResponse(responseCode = "404", description = "No previous version found", content = @Content)
+    })
+    @PostMapping("/{promptKey}/rollback")
+    public ResponseEntity<PromptRollbackResponse> rollback(
+            @Parameter(description = "Prompt key", required = true)
+            @PathVariable String promptKey) {
+        log.info("[PromptAdminController] Rolling back prompt key='{}'", promptKey);
+        return ResponseEntity.ok(promptAdminService.rollback(promptKey));
     }
 }

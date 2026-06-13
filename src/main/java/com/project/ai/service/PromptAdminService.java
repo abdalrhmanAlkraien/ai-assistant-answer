@@ -4,6 +4,9 @@ import com.project.ai.dto.PromptCreateRequest;
 import com.project.ai.dto.PromptDetailDto;
 import com.project.ai.dto.PromptStatsDto;
 import com.project.ai.dto.PromptSummaryDto;
+import com.project.ai.dto.prompt.PromptRollbackResponse;
+import com.project.ai.dto.prompt.PromptUpdateRequest;
+import com.project.ai.dto.prompt.PromptVersionDto;
 import com.project.ai.loader.PromptLoader;
 import com.project.ai.model.prompt.BusinessPrompt;
 import com.project.ai.repository.BusinessPromptRepository;
@@ -39,46 +42,84 @@ public class PromptAdminService {
         log.info("[PromptAdminService] Creating prompt key={} business={}",
                 request.getPromptKey(), businessName);
 
-        // check for duplicate key in same business
-        promptRepository.findByBusinessNameAndPromptKey(businessName, request.getPromptKey())
-                .ifPresent(p -> {
-                    throw new IllegalArgumentException(
-                            "Prompt already exists for key='" + request.getPromptKey()
-                                    + "' business='" + businessName + "'");
-                });
+        if (promptRepository.existsByBusinessNameAndPromptKeyAndActiveTrue(
+                businessName, request.getPromptKey())) {
+            throw new IllegalArgumentException(
+                    "Active prompt already exists for key='" + request.getPromptKey() + "'");
+        }
+
+        int nextVersion = promptRepository.findMaxVersionByBusinessNameAndPromptKey(
+                businessName, request.getPromptKey()) + 1;
 
         BusinessPrompt prompt = BusinessPrompt.builder()
                 .businessName(businessName)
                 .promptKey(request.getPromptKey())
                 .promptTemplate(request.getPromptTemplate())
-                .version(1)
+                .version(nextVersion)
                 .active(request.isActive())
+                .description(request.getDescription())
+                .updatedBy(request.getUpdatedBy())
+                .changeReason(request.getChangeReason())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
 
         BusinessPrompt saved = promptRepository.save(prompt);
 
-        // load into cache if active
         if (request.isActive()) {
             promptLoader.reload(saved.getPromptKey());
             log.info("[PromptAdminService] Loaded new prompt key={} into cache", saved.getPromptKey());
         }
 
-        log.info("[PromptAdminService] Created prompt id={} key={}", saved.getId(), saved.getPromptKey());
+        log.info("[PromptAdminService] Created prompt id={} key={} version={}",
+                saved.getId(), saved.getPromptKey(), saved.getVersion());
 
-        return PromptDetailDto.builder()
-                .id(saved.getId())
-                .businessName(saved.getBusinessName())
-                .promptKey(saved.getPromptKey())
-                .promptTemplate(saved.getPromptTemplate())
-                .version(saved.getVersion())
-                .isActive(saved.isActive())
-                .createdAt(saved.getCreatedAt())
-                .updatedAt(saved.getUpdatedAt())
-                .build();
+        return toDetailDto(saved);
     }
 
+    @Transactional
+    public PromptDetailDto updatePromptVersion(String promptKey, PromptUpdateRequest request) {
+        log.info("[PromptAdminService] Creating new version for key='{}'", promptKey);
+
+        // deactivate current active version
+        promptRepository.findByBusinessNameAndPromptKeyAndActiveTrue(businessName, promptKey)
+                .ifPresent(current -> {
+                    current.setActive(false);
+                    current.setDeactivatedAt(LocalDateTime.now());
+                    current.setUpdatedAt(LocalDateTime.now());
+                    promptRepository.save(current);
+                    log.info("[PromptAdminService] Deactivated version={} for key='{}'",
+                            current.getVersion(), promptKey);
+                });
+
+        // calculate next version
+        int nextVersion = promptRepository.findMaxVersionByBusinessNameAndPromptKey(
+                businessName, promptKey) + 1;
+
+        // create new version
+        BusinessPrompt newVersion = BusinessPrompt.builder()
+                .businessName(businessName)
+                .promptKey(promptKey)
+                .promptTemplate(request.getPromptTemplate())
+                .version(nextVersion)
+                .active(true)
+                .description(request.getDescription())
+                .updatedBy(request.getUpdatedBy())
+                .changeReason(request.getChangeReason())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        BusinessPrompt saved = promptRepository.save(newVersion);
+
+        // reload cache
+        promptLoader.reload(promptKey);
+
+        log.info("[PromptAdminService] Created version={} for key='{}'",
+                saved.getVersion(), promptKey);
+
+        return toDetailDto(saved);
+    }
 
     public void updatePrompt(String promptKey, String newPromptTemplate) {
 
@@ -95,22 +136,71 @@ public class PromptAdminService {
         promptLoader.reload(promptKey);
     }
 
+    @Transactional
+    public PromptRollbackResponse rollback(String promptKey) {
+        log.info("[PromptAdminService] Rolling back prompt key='{}'", promptKey);
+
+        // find current active
+        BusinessPrompt current = promptRepository
+                .findByBusinessNameAndPromptKeyAndActiveTrue(businessName, promptKey)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No active prompt found for key='" + promptKey + "'"));
+
+        // find previous version
+        BusinessPrompt previous = promptRepository
+                .findPreviousVersion(businessName, promptKey)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No previous version found for key='" + promptKey + "'"));
+
+        int fromVersion = current.getVersion();
+        int toVersion   = previous.getVersion();
+
+        // deactivate current
+        current.setActive(false);
+        current.setDeactivatedAt(LocalDateTime.now());
+        current.setUpdatedAt(LocalDateTime.now());
+        promptRepository.save(current);
+
+        // activate previous
+        previous.setActive(true);
+        previous.setDeactivatedAt(null);
+        previous.setUpdatedAt(LocalDateTime.now());
+        promptRepository.save(previous);
+
+        // reload cache
+        promptLoader.reload(promptKey);
+
+        log.info("[PromptAdminService] Rolled back key='{}' from v{} to v{}",
+                promptKey, fromVersion, toVersion);
+
+        return PromptRollbackResponse.builder()
+                .promptKey(promptKey)
+                .rolledBackFromVersion(fromVersion)
+                .rolledBackToVersion(toVersion)
+                .message("Successfully rolled back '" + promptKey
+                        + "' from v" + fromVersion + " to v" + toVersion)
+                .build();
+    }
+
+    public List<PromptVersionDto> getHistory(String promptKey) {
+        log.info("[PromptAdminService] Fetching history for key='{}'", promptKey);
+
+        return promptRepository
+                .findAllByBusinessNameAndPromptKeyOrderByVersionDesc(businessName, promptKey)
+                .stream()
+                .map(this::toVersionDto)
+                .toList();
+    }
+
     public void reloadAll() {
         promptLoader.reloadAll();
     }
 
-    public Page<PromptSummaryDto> getAllPrompts(Pageable pageable) {
-        log.info("[PromptAdminService] Fetching all prompts");
-        return promptRepository.findAll(pageable)
-                .map(p -> PromptSummaryDto.builder()
-                        .id(p.getId())
-                        .businessName(p.getBusinessName())
-                        .promptKey(p.getPromptKey())
-                        .version(p.getVersion())
-                        .isActive(p.isActive())
-                        .createdAt(p.getCreatedAt())
-                        .updatedAt(p.getUpdatedAt())
-                        .build());
+    public Page<PromptSummaryDto> getAllPrompts(String promptKey, Boolean active, Pageable pageable) {
+        log.info("[PromptAdminService] Fetching prompts — promptKey={} active={}", promptKey, active);
+        return promptRepository
+                .findAllWithFilters(businessName, promptKey, active, pageable)
+                .map(this::toSummaryDto);
     }
 
     public PromptDetailDto getPromptById(Long id) {
@@ -125,6 +215,11 @@ public class PromptAdminService {
                 .promptTemplate(prompt.getPromptTemplate())
                 .version(prompt.getVersion())
                 .isActive(prompt.isActive())
+                .description(prompt.getDescription())
+                .evalRunAt(prompt.getEvalRunAt())
+                .evalScore(prompt.getEvalScore())
+                .changeReason(prompt.getChangeReason())
+                .deactivatedAt(prompt.getDeactivatedAt())
                 .createdAt(prompt.getCreatedAt())
                 .updatedAt(prompt.getUpdatedAt())
                 .build();
@@ -138,29 +233,40 @@ public class PromptAdminService {
         BusinessPrompt prompt = promptRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Prompt not found for id: " + id));
 
+        // block activation if another version is already active
+        if (active && !prompt.isActive()) {
+            boolean anotherActive = promptRepository
+                    .existsByBusinessNameAndPromptKeyAndActiveTrue(
+                            businessName, prompt.getPromptKey());
+            if (anotherActive) {
+                throw new IllegalStateException(
+                        "Cannot activate version=" + prompt.getVersion()
+                                + " — another version of '" + prompt.getPromptKey()
+                                + "' is already active. Use rollback instead.");
+            }
+        }
+
+        // deactivation — allowed, just set deactivatedAt
+        if (!active && prompt.isActive()) {
+            prompt.setDeactivatedAt(LocalDateTime.now());
+            // evict from cache when deactivating
+            promptLoader.evict(prompt.getPromptKey());  // ← add this
+            log.info("[PromptAdminService] Evicted key={} from cache after deactivation", prompt.getPromptKey());
+        }
+
         prompt.setActive(active);
         prompt.setUpdatedAt(LocalDateTime.now());
-        BusinessPrompt saved = promptRepository.saveAndFlush(prompt);  // ← use saveAndFlush
+        BusinessPrompt saved = promptRepository.saveAndFlush(prompt);
 
-        log.info("[PromptAdminService] After update — id={} active={}", id, saved.isActive());
-
-        // reload cache if activating
         if (active) {
             promptLoader.reload(prompt.getPromptKey());
             log.info("[PromptAdminService] Reloaded prompt key={} after activation", prompt.getPromptKey());
         }
 
-        log.info("[PromptAdminService] Prompt id={} key={} active={}", id, prompt.getPromptKey(), active);
+        log.info("[PromptAdminService] Prompt id={} key={} active={}",
+                id, prompt.getPromptKey(), active);
 
-        return PromptSummaryDto.builder()
-                .id(prompt.getId())
-                .businessName(prompt.getBusinessName())
-                .promptKey(prompt.getPromptKey())
-                .version(prompt.getVersion())
-                .isActive(prompt.isActive())
-                .createdAt(prompt.getCreatedAt())
-                .updatedAt(prompt.getUpdatedAt())
-                .build();
+        return toSummaryDto(saved);
     }
 
     @Transactional
@@ -171,6 +277,13 @@ public class PromptAdminService {
                 .orElseThrow(() -> new IllegalArgumentException("Prompt not found for id: " + id));
 
         promptRepository.delete(prompt);
+
+        // if deleted prompt was active — evict from cache
+        if (prompt.isActive()) {
+            promptLoader.evict(prompt.getPromptKey());
+            log.info("[PromptAdminService] Evicted key={} from cache after delete", prompt.getPromptKey());
+        }
+
         log.info("[PromptAdminService] Deleted prompt id={} key={}", id, prompt.getPromptKey());
     }
 
@@ -178,24 +291,29 @@ public class PromptAdminService {
     public void deletePrompts(List<Long> ids) {
         log.info("[PromptAdminService] Batch deleting {} prompts", ids.size());
 
-        List<Long> existing = promptRepository.findAllByIdIn(ids)
-                .stream()
-                .map(BusinessPrompt::getId)
-                .toList();
+        List<BusinessPrompt> existing = promptRepository.findAllByIdIn(ids);
+
+        if (existing.isEmpty()) {
+            throw new IllegalArgumentException("None of the provided prompt IDs exist: " + ids);
+        }
 
         List<Long> notFound = ids.stream()
-                .filter(id -> !existing.contains(id))
+                .filter(id -> existing.stream().noneMatch(p -> p.getId().equals(id)))
                 .toList();
 
         if (!notFound.isEmpty()) {
             log.warn("[PromptAdminService] Prompt IDs not found — skipping: {}", notFound);
         }
 
-        if (existing.isEmpty()) {
-            throw new IllegalArgumentException("None of the provided prompt IDs exist: " + ids);
-        }
+        // evict active ones from cache before deleting
+        existing.stream()
+                .filter(BusinessPrompt::isActive)
+                .forEach(p -> {
+                    promptLoader.evict(p.getPromptKey());
+                    log.info("[PromptAdminService] Evicted key={} from cache", p.getPromptKey());
+                });
 
-        promptRepository.deleteAllByIdIn(existing);
+        promptRepository.deleteAllByIdIn(existing.stream().map(BusinessPrompt::getId).toList());
         log.info("[PromptAdminService] Deleted {} prompts", existing.size());
     }
 
@@ -210,6 +328,59 @@ public class PromptAdminService {
                 .total(total)
                 .active(active)
                 .inactive(inactive)
+                .build();
+    }
+
+    // ── Mappers ───────────────────────────────────────────────────────────────
+
+    private PromptDetailDto toDetailDto(BusinessPrompt p) {
+        return PromptDetailDto.builder()
+                .id(p.getId())
+                .businessName(p.getBusinessName())
+                .promptKey(p.getPromptKey())
+                .promptTemplate(p.getPromptTemplate())
+                .version(p.getVersion())
+                .isActive(p.isActive())
+                .description(p.getDescription())
+                .updatedBy(p.getUpdatedBy())
+                .changeReason(p.getChangeReason())
+                .evalScore(p.getEvalScore())
+                .evalRunAt(p.getEvalRunAt())
+                .deactivatedAt(p.getDeactivatedAt())
+                .createdAt(p.getCreatedAt())
+                .updatedAt(p.getUpdatedAt())
+                .build();
+    }
+
+    private PromptSummaryDto toSummaryDto(BusinessPrompt p) {
+        return PromptSummaryDto.builder()
+                .id(p.getId())
+                .businessName(p.getBusinessName())
+                .promptKey(p.getPromptKey())
+                .version(p.getVersion())
+                .isActive(p.isActive())
+                .description(p.getDescription())
+                .updatedBy(p.getUpdatedBy())
+                .changeReason(p.getChangeReason())
+                .createdAt(p.getCreatedAt())
+                .updatedAt(p.getUpdatedAt())
+                .build();
+    }
+
+    private PromptVersionDto toVersionDto(BusinessPrompt p) {
+        return PromptVersionDto.builder()
+                .id(p.getId())
+                .promptKey(p.getPromptKey())
+                .version(p.getVersion())
+                .isActive(p.isActive())
+                .description(p.getDescription())
+                .updatedBy(p.getUpdatedBy())
+                .changeReason(p.getChangeReason())
+                .evalScore(p.getEvalScore())
+                .evalRunAt(p.getEvalRunAt())
+                .createdAt(p.getCreatedAt())
+                .updatedAt(p.getUpdatedAt())
+                .deactivatedAt(p.getDeactivatedAt())
                 .build();
     }
 }

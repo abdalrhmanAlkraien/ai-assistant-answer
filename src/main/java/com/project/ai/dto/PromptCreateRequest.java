@@ -24,4 +24,7 @@ public class PromptCreateRequest {
     private String promptTemplate;
 
     private boolean isActive = true;
+    private String  description;
+    private String  updatedBy;
+    private String  changeReason;
 }
