@@ -6,7 +6,9 @@ import com.project.ai.config.PromptKeys;
 import com.project.ai.loader.PromptLoader;
 import com.project.ai.dto.AiResult;
 import com.project.ai.dto.SearchIntent;
+import com.project.ai.model.planner.EcommerceStoreContext;
 import com.project.ai.processing.text.structure.IntentAnalyzer;
+import com.project.ai.strategy.ecommerce.executor.EcommerceContextBuilder;
 import com.project.ai.util.TokenUtil;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
@@ -30,6 +32,7 @@ public class EnglishIntentAnalyzer implements IntentAnalyzer {
     private final ChatModel chatModel;
     private final ObjectMapper mapper;
     private final PromptLoader promptLoader;
+    private final EcommerceContextBuilder ecommerceContextBuilder;
 
     @Override
     public AiResult<SearchIntent> extractIntent(String userQuestion) {
@@ -47,8 +50,15 @@ public class EnglishIntentAnalyzer implements IntentAnalyzer {
                 : "";
 
         String promptTemplate = promptLoader.get(PromptKeys.INTENT_ENGLISH);
-        String prompt = promptTemplate.formatted(priceInstruction, userQuestion);
 
+        EcommerceStoreContext context = ecommerceContextBuilder.build();
+
+        String prompt = promptTemplate.formatted(
+                priceInstruction,                                        // %s — memory
+                String.join(", ", context.getAvailableCategories()), // %s — categories
+                String.join(", ", context.getAvailableBrands()),     // %s — brands
+                userQuestion                                           // %s — question
+        );
         ChatResponse response = chatModel.chat(UserMessage.from(prompt));
 
         log.debug("[EnglishIntentAnalyzer] Raw intent JSON:\n{}", response.aiMessage().text());

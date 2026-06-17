@@ -85,4 +85,26 @@ public interface ProductRepository extends JpaRepository<Product, String> {
     void deleteAllByProductIds(@Param("ids") List<String> ids);
 
     Long countByActiveTrue();
+
+
+    // for suggest
+    @Query("SELECT p FROM Product p WHERE p.active = true " +
+            "AND LOWER(p.category) = LOWER(:category) " +
+            "AND LOWER(p.brand) != LOWER(:excludedBrand) " +
+            "ORDER BY p.price ASC")
+    List<Product> findActiveByCategoryExcludingBrand(
+            @Param("category") String category,
+            @Param("excludedBrand") String excludedBrand,
+            Pageable pageable);
+
+    @Query("SELECT p FROM Product p WHERE p.active = true " +
+            "AND LOWER(p.category) = LOWER(:category) " +
+            "AND LOWER(p.brand) != LOWER(:excludedBrand) " +
+            "AND p.price <= :maxPrice " +
+            "ORDER BY p.price ASC")
+    List<Product> findActiveByCategoryExcludingBrandWithMaxPrice(
+            @Param("category") String category,
+            @Param("excludedBrand") String excludedBrand,
+            @Param("maxPrice") Double maxPrice,
+            Pageable pageable);
 }

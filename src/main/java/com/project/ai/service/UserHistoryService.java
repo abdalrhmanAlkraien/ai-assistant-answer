@@ -35,13 +35,13 @@ public class UserHistoryService {
 
         return memoryRepository.findAllUsersWithStats(pageable)
                 .map(row -> UserHistorySummary.builder()
-                        .userId(((Number) row[0]).longValue())
+                        .userId((String) row[0])
                         .messageCount(((Number) row[1]).longValue())
                         .lastActivity((LocalDateTime) row[2])
                         .build());
     }
 
-    public Page<UserMessageDto> getUserHistory(Long userId, Pageable pageable) {
+    public Page<UserMessageDto> getUserHistory(String userId, Pageable pageable) {
         log.info("[UserHistoryService] Fetching history for userId={}", userId);
 
         return memoryRepository.findByUserIdOrderByCreatedAtAsc(userId, pageable)
@@ -62,7 +62,7 @@ public class UserHistoryService {
     }
 
     @Transactional
-    public void deleteMessages(Long userId, List<Long> messageIds) {
+    public void deleteMessages(String userId, List<Long> messageIds) {
         log.info("[UserHistoryService] Deleting {} messages for userId={}", messageIds.size(), userId);
 
         // validate messages belong to this user
@@ -89,7 +89,7 @@ public class UserHistoryService {
     }
 
     @Transactional
-    public void clearUserHistory(Long userId) {
+    public void clearUserHistory(String userId) {
         log.info("[UserHistoryService] Clearing all history for userId={}", userId);
 
         if (!memoryRepository.existsByUserId(userId)) {

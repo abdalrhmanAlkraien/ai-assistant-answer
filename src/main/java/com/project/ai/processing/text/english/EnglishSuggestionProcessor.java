@@ -7,7 +7,9 @@ import com.project.ai.dto.ProcessingRequest;
 import com.project.ai.dto.ProcessingResult;
 import com.project.ai.dto.SearchIntent;
 import com.project.ai.dto.TokenTracker;
+import com.project.ai.model.Product;
 import com.project.ai.processing.ChatProcessor;
+import com.project.ai.processing.text.structure.EcommerceFilterProcessor;
 import com.project.ai.processing.text.structure.FilterProcessor;
 import com.project.ai.processing.text.structure.MatchedIdsResolver;
 import com.project.ai.service.SearchService;
@@ -42,6 +44,7 @@ public class EnglishSuggestionProcessor implements ChatProcessor {
     private final SearchService searchService;
     private final ChatModel chatModel;
     private final LangChain4jProperties properties;
+    private final EcommerceFilterProcessor ecommerceFilterProcessor;
 
     public EnglishSuggestionProcessor(
             final EmbeddingStore<TextSegment> embeddingStore,
@@ -50,7 +53,8 @@ public class EnglishSuggestionProcessor implements ChatProcessor {
             final MatchedIdsResolver matchedIdsResolver,
             final SearchService searchService,
             @Qualifier("englishChatModel") ChatModel chatModel,
-            final LangChain4jProperties properties
+            final LangChain4jProperties properties,
+            EcommerceFilterProcessor ecommerceFilterProcessor
     ) {
 
         this.embeddingStore = embeddingStore;
@@ -60,6 +64,7 @@ public class EnglishSuggestionProcessor implements ChatProcessor {
         this.searchService = searchService;
         this.chatModel = chatModel;
         this.properties = properties;
+        this.ecommerceFilterProcessor = ecommerceFilterProcessor;
     }
 
     @Override
@@ -69,147 +74,51 @@ public class EnglishSuggestionProcessor implements ChatProcessor {
 
     @Override
     public ProcessingResult process(ProcessingRequest request) {
-
-        log.info("[EnglishSuggestionProcessor] START — originalType={}",
-                request.getSearchIntent().getSearchType());
+        log.info("[EnglishSuggestionProcessor] START");
 
         SearchIntent originalIntent = request.getSearchIntent();
 
-        // keep relaxing constraints until we find candidates
-        SearchIntent relaxedIntent = originalIntent;
-
-        FilteredContext suggestContext = FilteredContext.builder()
-                .filteredMatches(List.of())
-                .context("")
+        SearchIntent suggestIntent = SearchIntent.builder()
+                .searchType("suggest")
+                .category(originalIntent.getCategory())
+                .excludedBrand(originalIntent.getBrand())  // brand to exclude
+                .maxPrice(originalIntent.getMaxPrice())
+                .semanticQuery(originalIntent.getSemanticQuery())
                 .build();
 
-        for (int step = 1; step <= 4; step++) {
-            relaxedIntent = suggestionService.buildSuggestIntent(relaxedIntent);
+        FilteredContext context = ecommerceFilterProcessor.filter(suggestIntent);
 
-            String query = relaxedIntent.getSemanticQuery() != null
-                    ? relaxedIntent.getSemanticQuery()
-                    : originalIntent.getSemanticQuery();
-
-            log.info("[EnglishSuggestionProcessor] Relaxation step {} — brand={}, maxPrice={}, query='{}'",
-                    step, relaxedIntent.getBrand(), relaxedIntent.getMaxPrice(), query);
-
-            EmbeddingSearchRequest searchRequest = searchService.buildSearchRequest(relaxedIntent);
-            List<EmbeddingMatch<TextSegment>> matches = embeddingStore.search(searchRequest).matches();
-            suggestContext = filterProcessor.filter(matches, relaxedIntent);
-
-            // ── Filter out excluded brand ─────────────────────────────────────────
-            String excludedBrand = relaxedIntent.getExcludedBrand();
-            if (excludedBrand != null && !excludedBrand.isBlank()) {
-                List<EmbeddingMatch<TextSegment>> filtered = suggestContext.getFilteredMatches()
-                        .stream()
-                        .filter(m -> {
-                            String brand = m.embedded().metadata().getString("brand");
-                            return brand == null || !brand.equalsIgnoreCase(excludedBrand);
-                        })
-                        .toList();
-
-                log.info("[EnglishSuggestionProcessor] excludedBrand='{}' metadata brands found: {}",
-                        excludedBrand,
-                        suggestContext.getFilteredMatches().stream()
-                                .map(m -> m.embedded().metadata().getString("brand"))
-                                .toList());
-
-                suggestContext = FilteredContext.builder()
-                        .filteredMatches(filtered)
-                        .context(filtered.stream()
-                                .map(m -> "[" + m.embedded().metadata().getString("id") + "] "
-                                        + m.embedded().text())
-                                .collect(Collectors.joining("\n")))
-                        .build();
-
-                log.info("[EnglishSuggestionProcessor] After excluding brand='{}': {} candidates",
-                        excludedBrand, suggestContext.getFilteredMatches().size());
-            }
-            // ─────────────────────────────────────────────────────────────────────
-
-            log.info("[EnglishSuggestionProcessor] Step {} candidates: {}",
-                    step, suggestContext.getFilteredMatches().size());
-
-            if (!suggestContext.getFilteredMatches().isEmpty()) {
-                log.info("[EnglishSuggestionProcessor] Found candidates at step {}", step);
-                break;
-            }
-        }
-
-        if (suggestContext.getFilteredMatches().isEmpty()) {
-            log.info("[EnglishSuggestionProcessor] No candidates found after all relaxation steps");
+        if (context.getProducts().isEmpty()) {
+            log.info("[EnglishSuggestionProcessor] No alternatives found");
             return ProcessingResult.builder()
                     .enrichedQuestion(originalIntent.getSemanticQuery())
                     .type("suggest")
-                    .answer("Sorry, no products found matching your criteria.")
+                    .answer("Sorry, we couldn't find any alternatives matching your request in our catalog.")
                     .matchedIds(List.of())
                     .build();
         }
-
-        // ── Verify candidates are relevant to original query ──────────────────────
-        if (!isRelevantToQuery(suggestContext, originalIntent)) {
-            log.info("[EnglishSuggestionProcessor] Candidates not relevant to original query — returning not found");
-            return ProcessingResult.builder()
-                    .enrichedQuestion(originalIntent.getSemanticQuery())
-                    .type("suggest")
-                    .answer("I couldn't find any products matching your request. " +
-                            "We may not carry this type of product yet.")
-                    .matchedIds(List.of())
-                    .build();
-        }
-
-        // cap to top 5 by score to avoid passing irrelevant products to LLM
-        // ── Sort by price ascending after relevance check ──────────────────────────
-        List<EmbeddingMatch<TextSegment>> topMatches = suggestContext.getFilteredMatches().stream()
-                .sorted((a, b) -> {
-                    String priceA = a.embedded().metadata().getString("price");
-                    String priceB = b.embedded().metadata().getString("price");
-                    if (priceA == null || priceB == null) return 0;
-                    try {
-                        return Double.compare(Double.parseDouble(priceA), Double.parseDouble(priceB));
-                    } catch (NumberFormatException e) {
-                        return 0;
-                    }
-                })
-                .limit(5)
-                .toList();
-
-        FilteredContext cappedContext = FilteredContext.builder()
-                .filteredMatches(topMatches)
-                .context(topMatches.stream()
-                        .map(m -> "[" + m.embedded().metadata().getString("id") + "] "
-                                + m.embedded().text())
-                        .collect(Collectors.joining("\n")))
-                .build();
-
-        log.debug("[EnglishSuggestionProcessor] Suggestion candidates:\n{}", cappedContext.getContext());
 
         String enrichedQuestion = request.getEnrichedQuestion() != null
                 ? request.getEnrichedQuestion()
                 : request.getRawQuestion();
 
-
-        String question = suggestionService.suggestionProduct(enrichedQuestion, cappedContext, Language.ENGLISH);
-
         TokenTracker tracker = request.getTokenTracker();
+        long start = System.currentTimeMillis();
 
-        long intentStart = System.currentTimeMillis();
+        String prompt = suggestionService.suggestionProduct(
+                enrichedQuestion, context, Language.ENGLISH);
+        ChatResponse answer = chatModel.chat(UserMessage.from(prompt));
 
-        ChatResponse answer = chatModel.chat(UserMessage.from(question));
-
-        long intentDuration = System.currentTimeMillis() - intentStart;
-
-        tracker.record(
-                "english-suggestion-processor",
+        long duration = System.currentTimeMillis() - start;
+        tracker.record("english-suggestion-processor",
                 properties.getChatModel().getOllama().getEnglishModelName(),
                 answer.tokenUsage().inputTokenCount(),
                 answer.tokenUsage().outputTokenCount(),
-                intentDuration
-        );
+                duration);
 
-        log.debug("[EnglishSuggestionProcessor] Suggestion answer:\n{}", answer.aiMessage().text());
-
-        List<String> matchedIds = matchedIdsResolver.resolve(answer.aiMessage().text(), cappedContext, originalIntent);
+        List<String> matchedIds = context.getProducts().stream()
+                .map(Product::getProductId)
+                .toList();
 
         log.info("[EnglishSuggestionProcessor] END — matchedIds={}", matchedIds);
 
@@ -219,7 +128,6 @@ public class EnglishSuggestionProcessor implements ChatProcessor {
                 .answer(answer.aiMessage().text())
                 .matchedIds(matchedIds)
                 .build();
-
     }
 
     private boolean isRelevantToQuery(FilteredContext context, SearchIntent originalIntent) {

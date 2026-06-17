@@ -60,7 +60,7 @@ public class UserHistoryController {
     })
     @GetMapping("/{userId}")
     public ResponseEntity<Page<UserMessageDto>> getUserHistory(
-            @Parameter(description = "User ID", required = true) @PathVariable Long userId,
+            @Parameter(description = "User ID", required = true) @PathVariable String userId,
             @PageableDefault(size = 50, sort = "createdAt") Pageable pageable) {
         return ResponseEntity.ok(userHistoryService.getUserHistory(userId, pageable));
     }
@@ -75,7 +75,7 @@ public class UserHistoryController {
     })
     @DeleteMapping("/{userId}/messages")
     public ResponseEntity<Void> deleteMessages(
-            @Parameter(description = "User ID", required = true) @PathVariable Long userId,
+            @Parameter(description = "User ID", required = true) @PathVariable String userId,
             @RequestBody List<Long> messageIds) {
         userHistoryService.deleteMessages(userId, messageIds);
         return ResponseEntity.noContent().build();
@@ -91,7 +91,7 @@ public class UserHistoryController {
     })
     @DeleteMapping("/{userId}")
     public ResponseEntity<Void> clearUserHistory(
-            @Parameter(description = "User ID", required = true) @PathVariable Long userId) {
+            @Parameter(description = "User ID", required = true) @PathVariable String userId) {
         userHistoryService.clearUserHistory(userId);
         return ResponseEntity.noContent().build();
     }

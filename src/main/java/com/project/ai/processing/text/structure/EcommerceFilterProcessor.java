@@ -53,6 +53,8 @@ public class EcommerceFilterProcessor {
 
             case "hybrid" -> queryHybrid(intent);
 
+            case "suggest" -> querySuggest(intent);
+
             default -> {
                 log.warn("[EcommerceFilterProcessor] unexpected type='{}' for Tier0",
                         intent.getSearchType());
@@ -98,6 +100,32 @@ public class EcommerceFilterProcessor {
         return List.of();
     }
 
+    private List<Product> querySuggest(SearchIntent intent) {
+        String excludedBrand = intent.getExcludedBrand();
+        String category      = intent.getCategory();
+        Double maxPrice      = intent.getMaxPrice();
+
+        log.info("[EcommerceFilterProcessor] suggest — category={} excludedBrand={} maxPrice={}",
+                category, excludedBrand, maxPrice);
+
+        // category + excluded brand + price
+        if (category != null && excludedBrand != null && maxPrice != null) {
+            return productRepository.findActiveByCategoryExcludingBrandWithMaxPrice(
+                    category, excludedBrand, maxPrice, PageRequest.of(0, maxResults));
+        }
+        // category + excluded brand
+        if (category != null && excludedBrand != null) {
+            return productRepository.findActiveByCategoryExcludingBrand(
+                    category, excludedBrand, PageRequest.of(0, maxResults));
+        }
+        // category only
+        if (category != null) {
+            return productRepository.findActiveByCategory(
+                    category, PageRequest.of(0, maxResults));
+        }
+        // no category, no brand → return empty (too vague)
+        return List.of();
+    }
 
     private FilteredContext buildContext(List<Product> products) {
         String context = products.stream()

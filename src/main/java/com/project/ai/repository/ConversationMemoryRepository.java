@@ -87,20 +87,20 @@ public interface ConversationMemoryRepository extends JpaRepository<Conversation
             "FROM ConversationMemory cm GROUP BY cm.userId ORDER BY MAX(cm.createdAt) DESC")
     Page<Object[]> findAllUsersWithStats(Pageable pageable);
 
-    Page<ConversationMemory> findByUserIdOrderByCreatedAtAsc(Long userId, Pageable pageable);
+    Page<ConversationMemory> findByUserIdOrderByCreatedAtAsc(String userId, Pageable pageable);
 
 
     @Modifying
     @Query("DELETE FROM ConversationMemory cm WHERE cm.userId = :userId AND cm.id IN :ids")
-    void deleteByUserIdAndIdIn(@Param("userId") Long userId, @Param("ids") List<Long> ids);
+    void deleteByUserIdAndIdIn(@Param("userId") String userId, @Param("ids") List<Long> ids);
 
     @Modifying
     @Query("DELETE FROM ConversationMemory cm WHERE cm.userId = :userId")
-    void deleteAllByUserId(@Param("userId") Long userId);
+    void deleteAllByUserId(@Param("userId") String userId);
 
-    boolean existsByUserId(Long userId);
+    boolean existsByUserId(String userId);
 
-    List<ConversationMemory> findByUserIdAndIdIn(Long userId, List<Long> ids);
+    List<ConversationMemory> findByUserIdAndIdIn(String userId, List<Long> ids);
 
     @Query("SELECT COUNT(DISTINCT cm.userId) FROM ConversationMemory cm")
     Long countDistinctUsers();

@@ -10,8 +10,10 @@ import com.project.ai.dto.TokenTracker;
 import com.project.ai.loader.PromptLoader;
 import com.project.ai.model.planner.AnalysisJson;
 import com.project.ai.model.planner.ComplexityLevel;
+import com.project.ai.model.planner.EcommerceStoreContext;
 import com.project.ai.model.planner.IntentType;
 import com.project.ai.model.planner.RequestAnalysis;
+import com.project.ai.strategy.ecommerce.executor.EcommerceContextBuilder;
 import com.project.ai.util.LanguageDetector;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
@@ -39,6 +41,7 @@ public class RequestAnalyzer {
     private final ChatModel chatModel;
     private final LangChain4jProperties properties;
     private final PromptLoader promptLoader;      // ← inject
+    private final EcommerceContextBuilder ecommerceContextBuilder;
 
     private static final Set<String> ENGLISH_GREETINGS = Set.of(
             "hi", "hello", "hey", "good morning", "good afternoon", "good evening",
@@ -53,17 +56,14 @@ public class RequestAnalyzer {
     );
 
     private static final Set<String> SECURITY_KEYWORDS = Set.of(
-            // english
-            "password", "secret", "api key", "token", "credentials", "endpoint",
-            "database", "db password", "connection string", "backend", "architecture",
-            "framework", "what llm", "what model", "who made you", "system prompt",
-            "ignore previous", "act as dan", "jailbreak", "prompt injection",
-            "what ai", "your instructions", "your rules", "base url", "internal url",
-            "source code", "git", "environment variable", "aws", "docker", "server",
-            // arabic
-            "كلمة مرور", "مفتاح", "قاعدة البيانات", "الـ llm", "النموذج",
-            "من صنعك", "بنية النظام", "تجاهل التعليمات", "الـ api",
-            "الروابط الداخلية", "مفاتيح سرية", "البنية التحتية"
+            "ignore previous instructions",
+            "act as dan",
+            "jailbreak",
+            "forget your instructions",
+            "disregard your instructions",
+            "تجاهل التعليمات السابقة",
+            "انسَ تعليماتك",
+            "تصرف كـ dan"
     );
 
     public RequestAnalysis analyze(MultimodalRequest request, String memoryContext) {
@@ -133,7 +133,21 @@ public class RequestAnalyzer {
 
         String promptTemplate = promptLoader.get(promptKey);
 
-        String prompt = promptTemplate.formatted(memorySection, rawQuestion);
+        EcommerceStoreContext context = ecommerceContextBuilder.build();
+
+        String sanitizedQuestion = rawQuestion
+                .replace("$", "")      // remove $ sign that triggers Qubrid filter
+                .replace("﷼", "")      // remove SAR symbol
+                .trim();
+
+        String prompt = promptTemplate.formatted(
+                String.join(", ", context.getAvailableCategories()),  // %1$s — categories
+                String.join(", ", context.getAvailableBrands()),      // %2$s — brands
+                context.getMinPrice(),                                 // %3$s — min price
+                context.getMaxPrice(),                                 // %4$s — max price
+                memorySection,                                         // %5$s — memory
+                sanitizedQuestion                                            // %6$s — question
+        );
 
         long start = System.currentTimeMillis();
         ChatResponse response = chatModel.chat(UserMessage.from(prompt));
@@ -315,6 +329,12 @@ public class RequestAnalyzer {
     private boolean isSecurityQuestion(String question) {
         if (question == null) return false;
         String lower = question.toLowerCase();
-        return SECURITY_KEYWORDS.stream().anyMatch(lower::contains);
+        return SECURITY_KEYWORDS.stream().anyMatch(keyword -> {
+            // use word boundary for short keywords to avoid false matches
+            if (keyword.length() <= 4) {
+                return lower.matches(".*\\b" + keyword + "\\b.*");
+            }
+            return lower.contains(keyword);
+        });
     }
 }

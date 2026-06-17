@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @Builder
 public class UserHistorySummary {
 
-    private Long userId;
+    private String userId;
     private Long messageCount;
     private LocalDateTime lastActivity;
 }

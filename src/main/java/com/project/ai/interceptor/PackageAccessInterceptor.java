@@ -37,7 +37,8 @@ public class PackageAccessInterceptor implements HandlerInterceptor {
             "/api/admin/prompts/**",
             "/api/growth/analytics/**",
             "/api/growth/evals/**",
-            "/api/growth/security-log/**"
+            "/api/growth/security-log/**",
+            "/**"
     );
 
     private static final List<String> ENTERPRISE_ENDPOINTS = List.of(

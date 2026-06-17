@@ -23,13 +23,12 @@ public class SuggestionService {
 
     private final PromptLoader promptLoader;
 
-    public String suggestionProduct(final String question, final FilteredContext suggestContext, final Language language) {
-
-        log.info("suggest product enable");
-
-        String productsContext = suggestContext.getFilteredMatches().stream()
-                .map(m -> "[" + m.embedded().metadata().getString("productId") + "] "
-                        + m.embedded().text())
+    public String suggestionProduct(String question, FilteredContext context, Language language) {
+        String productsContext = context.getProducts().stream()
+                .map(p -> "[" + p.getProductId() + "] " + p.getTitle()
+                        + " - " + p.getPrice()
+                        + " - " + p.getCategory()
+                        + " - " + p.getDescription())
                 .collect(Collectors.joining("\n"));
 
         String promptKey = language.equals(Language.ARABIC)
@@ -37,26 +36,29 @@ public class SuggestionService {
                 : PromptKeys.SUGGESTION_ENGLISH;
 
         String template = promptLoader.get(promptKey);
-
         return template.formatted(question, productsContext);
     }
 
     public SearchIntent buildSuggestIntent(SearchIntent original) {
 
-        // preserve price ceiling from original intent — never relax it
         Double priceCeiling = original.getMaxSuggestPrice() != null
                 ? original.getMaxSuggestPrice()
-                : original.getMaxPrice();  // first call — copy maxPrice as ceiling
+                : original.getMaxPrice();
 
-        // Step 1: Remove brand — keep category + price, remember excluded brand
+        // always carry excludedBrand from original — never lose it
+        String excludedBrand = original.getExcludedBrand() != null
+                ? original.getExcludedBrand()
+                : original.getBrand();  // first call — set from brand
+
+        // Step 1: Remove brand — keep category + price
         if (original.getBrand() != null) {
             return SearchIntent.builder()
                     .searchType("suggest")
                     .category(original.getCategory())
-                    .maxPrice(priceCeiling)        // ← keep price ceiling
+                    .maxPrice(priceCeiling)
                     .semanticQuery(original.getSemanticQuery())
-                    .excludedBrand(original.getBrand())
-                    .maxSuggestPrice(priceCeiling) // ← carry ceiling
+                    .excludedBrand(excludedBrand)    // ← always set
+                    .maxSuggestPrice(priceCeiling)
                     .build();
         }
 
@@ -65,10 +67,9 @@ public class SuggestionService {
             return SearchIntent.builder()
                     .searchType("suggest")
                     .category(original.getCategory())
-                    .maxPrice(priceCeiling)        // ← keep price ceiling
                     .semanticQuery(original.getSemanticQuery())
-                    .excludedBrand(original.getExcludedBrand())
-                    .maxSuggestPrice(priceCeiling) // ← carry ceiling
+                    .excludedBrand(excludedBrand)    // ← always carry
+                    .maxSuggestPrice(priceCeiling)
                     .build();
         }
 
@@ -76,17 +77,17 @@ public class SuggestionService {
         if (original.getCategory() != null) {
             return SearchIntent.builder()
                     .searchType("suggest")
-                    .maxPrice(priceCeiling)        // ← keep price ceiling
                     .semanticQuery(original.getSemanticQuery())
-                    .excludedBrand(original.getExcludedBrand())
-                    .maxSuggestPrice(priceCeiling) // ← carry ceiling
+                    .excludedBrand(excludedBrand)    // ← always carry
+                    .maxSuggestPrice(priceCeiling)
                     .build();
         }
 
-        // Step 4: Pure semantic
+        // Step 4: Pure semantic — still exclude original brand
         return SearchIntent.builder()
                 .searchType("suggest")
-                .maxPrice(priceCeiling)
                 .semanticQuery(original.getSemanticQuery())
+                .excludedBrand(excludedBrand)        // ← always carry
                 .build();
-    }}
+    }
+}
