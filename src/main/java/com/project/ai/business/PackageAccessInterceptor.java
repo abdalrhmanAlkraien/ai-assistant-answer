@@ -1,6 +1,5 @@
-package com.project.ai.interceptor;
+package com.project.ai.business;
 
-import com.project.ai.config.PackageProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.Data;
@@ -23,22 +22,44 @@ public class PackageAccessInterceptor implements HandlerInterceptor {
 
     private final PackageProperties packageProperties;
 
+    private static final List<String> AUTH_ENDPOINTS = List.of(
+            "/api/auth/**",
+            "/api/lookups/**",
+            "/swagger-ui/**",
+            "/v3/api-docs/**",
+            "/api/health"
+    );
+
     private static final List<String> BASIC_ENDPOINTS = List.of(
             "/api/v1/chat/**",
             "/api/v1/products/**",
+            "/api/v1/categories/**",
             "/api/admin/prompts",
-            "/api/admin/prompts/**"
+            "/api/admin/prompts/**",
+            "/api/admin/users/**",
+            "/api/v1/dashboard/**",
+            "/api/evals/**",
+            "/api/lookups/**",
+            "/api/v1/tokens/**",
+            "/api/admin/users/**",
+            "/api/v1/history/**"
     );
 
     private static final List<String> GROWTH_ENDPOINTS = List.of(
             "/api/v1/chat/**",
+            "/api/v1/dashboard/**",
             "/api/v1/products/**",
+            "/api/v1/categories/**",
             "/api/admin/prompts",
             "/api/admin/prompts/**",
+            "/api/admin/users/**",
             "/api/growth/analytics/**",
             "/api/growth/evals/**",
             "/api/growth/security-log/**",
-            "/**"
+            "/api/evals/**",
+            "/api/lookups/**",
+            "/api/admin/users/**",
+            "/api/v1/history/**"
     );
 
     private static final List<String> ENTERPRISE_ENDPOINTS = List.of(
@@ -56,9 +77,15 @@ public class PackageAccessInterceptor implements HandlerInterceptor {
                              HttpServletResponse response,
                              Object handler) throws Exception {
 
-        String requestPath  = request.getRequestURI();
-        String activePackage = packageProperties.getActive();
+        String requestPath   = request.getRequestURI();
+        String activePackage = packageProperties.getActive().toLowerCase();
 
+        // ── Always allow auth endpoints ───────────────────────────────────────
+        boolean isAuthEndpoint = AUTH_ENDPOINTS.stream()
+                .anyMatch(pattern -> matchesPattern(pattern, requestPath));
+        if (isAuthEndpoint) return true;
+
+        // ── Check package permissions ─────────────────────────────────────────
         List<String> allowed = PACKAGE_ENDPOINTS.getOrDefault(activePackage, List.of());
 
         boolean permitted = allowed.stream()

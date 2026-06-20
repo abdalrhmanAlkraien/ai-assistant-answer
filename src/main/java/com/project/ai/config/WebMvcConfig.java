@@ -1,6 +1,6 @@
 package com.project.ai.config;
 
-import com.project.ai.interceptor.PackageAccessInterceptor;
+import com.project.ai.business.PackageAccessInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;

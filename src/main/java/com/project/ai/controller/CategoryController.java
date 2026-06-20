@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -46,6 +47,7 @@ public class CategoryController {
             @ApiResponse(responseCode = "400", description = "Invalid request body", content = @Content)
     })
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Category> create(@RequestBody @Valid CategoryRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.create(request));
     }
@@ -56,6 +58,7 @@ public class CategoryController {
             @ApiResponse(responseCode = "400", description = "Invalid request body", content = @Content)
     })
     @PostMapping("/batch")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<List<Category>> createList(@RequestBody @Valid List<CategoryRequest> requests) {
         return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.createList(requests));
     }
@@ -84,6 +87,7 @@ public class CategoryController {
             @ApiResponse(responseCode = "404", description = "Category not found", content = @Content)
     })
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Category> update(
             @Parameter(description = "Category ID", required = true) @PathVariable Long id,
             @RequestBody @Valid CategoryRequest request) {
@@ -96,6 +100,7 @@ public class CategoryController {
             @ApiResponse(responseCode = "404", description = "Category not found", content = @Content)
     })
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Void> delete(
             @Parameter(description = "Category ID", required = true) @PathVariable Long id) {
         categoryService.delete(id);
@@ -108,6 +113,7 @@ public class CategoryController {
     )
     @ApiResponse(responseCode = "200", description = "Categories reloaded successfully")
     @PostMapping("/categories/reload")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<String> reloadCategories() {
         categoryLoader.reload();
         return ResponseEntity.ok("Categories reloaded");

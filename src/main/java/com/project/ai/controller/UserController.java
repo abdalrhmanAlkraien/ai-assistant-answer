@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -39,6 +40,7 @@ public class UserController {
     private final CognitoService cognitoService;
 
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<UserDto> createUser(
             @RequestBody @Valid CreateUserRequest request,
             @AuthenticationPrincipal Jwt jwt) {
@@ -47,6 +49,7 @@ public class UserController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Map<String, Object>> getUsers(
             @RequestParam(required = false) String nextToken,
             @RequestParam(defaultValue = "10") int limit) {
@@ -54,12 +57,14 @@ public class UserController {
     }
 
     @GetMapping("/{username}")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<UserDto> getUserDetails(
             @PathVariable String username) {
         return ResponseEntity.ok(cognitoService.getUserDetails(username));
     }
 
     @PutMapping("/{username}")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<UserDto> updateUser(
             @PathVariable String username,
             @RequestBody @Valid UpdateUserRequest request) {
@@ -67,6 +72,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{username}")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Void> deleteUser(
             @PathVariable String username) {
         cognitoService.deleteUser(username);
@@ -74,6 +80,7 @@ public class UserController {
     }
 
     @PatchMapping("/{username}/group")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<UserDto> changeUserGroup(
             @PathVariable String username,
             @RequestBody @Valid UpdateUserGroupRequest request) {
@@ -81,6 +88,7 @@ public class UserController {
     }
 
     @PatchMapping("/{username}/reset-password")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Void> adminResetPassword(
             @PathVariable String username,
             @RequestBody @Valid AdminResetPasswordDto request) {

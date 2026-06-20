@@ -16,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -74,6 +75,7 @@ public class UserHistoryController {
             @ApiResponse(responseCode = "400", description = "None of the provided IDs exist for this user", content = @Content)
     })
     @DeleteMapping("/{userId}/messages")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Void> deleteMessages(
             @Parameter(description = "User ID", required = true) @PathVariable String userId,
             @RequestBody List<Long> messageIds) {
@@ -90,6 +92,7 @@ public class UserHistoryController {
             @ApiResponse(responseCode = "404", description = "No history found for this user", content = @Content)
     })
     @DeleteMapping("/{userId}")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Void> clearUserHistory(
             @Parameter(description = "User ID", required = true) @PathVariable String userId) {
         userHistoryService.clearUserHistory(userId);

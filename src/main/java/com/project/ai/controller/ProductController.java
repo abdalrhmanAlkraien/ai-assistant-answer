@@ -20,6 +20,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -56,6 +57,7 @@ public class ProductController {
             @ApiResponse(responseCode = "400", description = "Invalid request body", content = @Content)
     })
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Product> create(@RequestBody @Valid ProductRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(productService.create(request));
     }
@@ -66,6 +68,7 @@ public class ProductController {
             @ApiResponse(responseCode = "400", description = "Invalid request body", content = @Content)
     })
     @PostMapping("/batch")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<List<Product>> createBatch(@RequestBody @Valid List<ProductRequest> requests) {
         return ResponseEntity.status(HttpStatus.CREATED).body(productService.createBatch(requests));
     }
@@ -73,6 +76,7 @@ public class ProductController {
     @Operation(summary = "Get all products", description = "Returns paginated list of all products. Default page size is 20, sorted by title.")
     @ApiResponse(responseCode = "200", description = "Products retrieved")
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Page<Product>> findAll(
             @PageableDefault(size = 20, sort = "title") Pageable pageable) {
         return ResponseEntity.ok(productService.findAll(pageable));
@@ -84,6 +88,7 @@ public class ProductController {
             @ApiResponse(responseCode = "404", description = "Product not found", content = @Content)
     })
     @GetMapping("/{productId}")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Product> findById(
             @Parameter(description = "Product ID e.g. P001", required = true) @PathVariable String productId) {
         return ResponseEntity.ok(productService.findById(productId));
@@ -95,6 +100,7 @@ public class ProductController {
             @ApiResponse(responseCode = "404", description = "Product not found", content = @Content)
     })
     @PutMapping("/{productId}")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Product> update(
             @Parameter(description = "Product ID e.g. P001", required = true) @PathVariable String productId,
             @RequestBody @Valid ProductRequest request) {
@@ -107,6 +113,7 @@ public class ProductController {
             @ApiResponse(responseCode = "400", description = "Invalid request body", content = @Content)
     })
     @PutMapping("/batch")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<List<Product>> updateProducts(
             @RequestBody List<ProductUpdateRequest> requests) {
         return ResponseEntity.ok(productService.updateProducts(requests));
@@ -118,6 +125,7 @@ public class ProductController {
             @ApiResponse(responseCode = "404", description = "Product not found", content = @Content)
     })
     @DeleteMapping("/{productId}")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Void> delete(
             @Parameter(description = "Product ID e.g. P001", required = true) @PathVariable String productId) {
         productService.delete(productId);
@@ -130,6 +138,7 @@ public class ProductController {
             @ApiResponse(responseCode = "400", description = "Invalid request body", content = @Content)
     })
     @DeleteMapping("/batch")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Void> deleteProducts(@RequestBody List<String> productIds) {
         productService.deleteProducts(productIds);
         return ResponseEntity.noContent().build();
@@ -142,6 +151,7 @@ public class ProductController {
             @ApiResponse(responseCode = "500", description = "Indexing failed", content = @Content)
     })
     @PostMapping("/index")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<IndexResponse> indexAll() {
         return ResponseEntity.ok(productService.indexAllProducts());
     }
@@ -156,6 +166,7 @@ public class ProductController {
             @ApiResponse(responseCode = "500", description = "Upload failed", content = @Content)
     })
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<BulkUploadResponse> uploadJson(
             @Parameter(description = "JSON file containing array of products", required = true)
             @RequestPart("file") MultipartFile file) throws IOException {
@@ -168,6 +179,7 @@ public class ProductController {
             @ApiResponse(responseCode = "404", description = "Product not found", content = @Content)
     })
     @PatchMapping("/{productId}/status")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Product> toggleStatus(
             @Parameter(description = "Product ID e.g. P001", required = true) @PathVariable String productId,
             @Parameter(description = "true to activate, false to deactivate", required = true) @RequestParam boolean active) {
@@ -183,9 +195,9 @@ public class ProductController {
             @ApiResponse(responseCode = "500", description = "Failed to clear index", content = @Content)
     })
     @DeleteMapping("/index")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<String> clearIndex() {
         productService.clearProductIndex();
         return ResponseEntity.ok("Product index cleared successfully");
     }
-
 }

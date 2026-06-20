@@ -1,5 +1,6 @@
 package com.project.ai.service;
 
+import com.project.ai.business.PackageFeatures;
 import com.project.ai.config.CognitoProperties;
 import com.project.ai.dto.user.AdminResetPasswordDto;
 import com.project.ai.dto.user.ConfirmForceChangePasswordDto;
@@ -74,6 +75,7 @@ public class CognitoService {
 
     private final CognitoIdentityProviderClient cognitoClient;
     private final CognitoProperties props;
+    private final PackageFeatures packageFeatures;
 
     // ── Auth ──────────────────────────────────────────────────────────────────
 
@@ -94,7 +96,7 @@ public class CognitoService {
 
             // ── Handle NEW_PASSWORD_REQUIRED challenge ────────────────────────────
             if (response.challengeName() == ChallengeNameType.NEW_PASSWORD_REQUIRED) {
-                log.info("[CognitoService] NEW_PASSWORD_REQUIRED challenge for user='{}'",
+                log.info("[CognitoService] NEW_PASSWORD_REQUIRED for user='{}'",
                         request.getEmail());
                 return LoginResponse.builder()
                         .challengeName("NEW_PASSWORD_REQUIRED")
@@ -103,13 +105,45 @@ public class CognitoService {
                         .build();
             }
 
+            // ── Get user info ─────────────────────────────────────────────────────
             AuthenticationResultType result = response.authenticationResult();
+
+            GetUserResponse userResponse = cognitoClient.getUser(
+                    GetUserRequest.builder()
+                            .accessToken(result.accessToken())
+                            .build()
+            );
+
+            List<AttributeType> attrs = userResponse.userAttributes();
+            String email = getAttr(attrs, "email");
+
+            List<String> groups = getUserGroups(userResponse.username());
+
+            boolean isAdmin = groups.contains("MIGFORA_ADMIN") || groups.contains("SUPER_ADMIN");
+
+            List<String> features = isAdmin
+                    ? packageFeatures.getActiveFeaturesForAdmin()
+                    : packageFeatures.getActiveFeatures();
+
             return LoginResponse.builder()
+                    // tokens
                     .accessToken(result.accessToken())
                     .idToken(result.idToken())
                     .refreshToken(result.refreshToken())
                     .expiresIn(result.expiresIn())
                     .tokenType(result.tokenType())
+                    // user info
+                    .sub(userResponse.username())
+                    .username(email)
+                    .email(email)
+                    .name(getAttr(attrs, "name"))
+                    .familyName(getAttr(attrs, "family_name"))
+                    .phoneNumber(getAttr(attrs, "phone_number"))
+                    .status("CONFIRMED")
+                    .groups(groups)
+                    // package info
+                    .packageType(packageFeatures.getActivePackage())
+                    .features(features)
                     .build();
 
         } catch (NotAuthorizedException e) {
@@ -503,6 +537,8 @@ public class CognitoService {
                     .phoneNumber(getAttr(response.userAttributes(), "phone_number"))
                     .status("CONFIRMED")
                     .groups(groups)
+                    .packageType(packageFeatures.getActivePackage())      // ← from yml
+                    .features(packageFeatures.getActiveFeatures())        // ← from yml
                     .build();
 
         } catch (NotAuthorizedException e) {

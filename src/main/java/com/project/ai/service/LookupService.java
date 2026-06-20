@@ -22,20 +22,22 @@ public class LookupService {
 
     private final SystemLookupRepository repository;
 
-    public List<SystemLookupDto> getActiveByType(String type) {
-        return repository.findByTypeAndActiveTrueOrderBySortOrderAsc(type)
-                .stream()
-                .map(this::toDto)
-                .toList();
-    }
+    public List<SystemLookupDto> getLookups(String type, boolean activeOnly) {
+        List<SystemLookup> results;
 
-    // ── Admin — full CRUD ─────────────────────────────────────────────────────
+        if (type != null && !type.isBlank()) {
+            // filter by type
+            results = activeOnly
+                    ? repository.findByTypeAndActiveTrueOrderBySortOrderAsc(type)
+                    : repository.findByTypeOrderBySortOrderAsc(type);
+        } else {
+            // all types
+            results = activeOnly
+                    ? repository.findByActiveTrueOrderBySortOrderAsc()
+                    : repository.findAllByOrderByTypeAscSortOrderAsc();
+        }
 
-    public List<SystemLookupDto> getAll() {
-        return repository.findAllByOrderByTypeAscSortOrderAsc()
-                .stream()
-                .map(this::toDto)
-                .toList();
+        return results.stream().map(this::toDto).toList();
     }
 
     public SystemLookupDto getById(Long id) {

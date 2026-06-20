@@ -16,6 +16,10 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -28,6 +32,17 @@ import java.util.List;
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+
+    private static final String[] WHITE_LIST = {
+            "/api/auth/login",
+            "/api/auth/refresh",
+            "/api/auth/forgot-password",
+            "/api/auth/confirm-forgot-password",
+            "/api/auth/confirm-force-change-password",
+            "/swagger-ui/**",
+            "/v3/api-docs/**",
+            "/api/health"
+    };
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -47,19 +62,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()  // ← allow preflight
-                        .requestMatchers(
-                                "/api/auth/login",
-                                "/api/auth/refresh",
-                                "/api/auth/forgot-password",
-                                "/api/auth/confirm-forgot-password",
-                                "/api/auth/confirm-force-change-password",
-                                "/api/lookups",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/api/health"
-                        ).permitAll()
-                        .requestMatchers("/api/admin/**").hasAnyAuthority(
-                                "ROLE_MIGFORA_ADMIN", "ROLE_SUPER_ADMIN")
+                        .requestMatchers(WHITE_LIST).permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2

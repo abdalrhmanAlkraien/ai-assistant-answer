@@ -27,7 +27,7 @@ import java.util.Map;
  * @Time: 1:44 AM
  */
 @RestController
-@RequestMapping("/api/growth/evals")
+@RequestMapping("/api/evals")
 @RequiredArgsConstructor
 @Log4j2
 public class EvaluationController {

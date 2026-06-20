@@ -23,4 +23,6 @@ public class UserDto {
     private String status;
     private List<String> groups;
     private LocalDateTime createdAt;
+    private String packageType;
+    private List<String> features;
 }

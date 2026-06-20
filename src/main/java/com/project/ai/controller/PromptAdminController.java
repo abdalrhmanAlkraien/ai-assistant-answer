@@ -23,6 +23,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -59,6 +60,7 @@ public class PromptAdminController {
             @ApiResponse(responseCode = "404", description = "Prompt key not found", content = @Content)
     })
     @PutMapping("/{promptKey}")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN')")
     public ResponseEntity<String> updatePrompt(
             @Parameter(description = "Prompt key e.g. request_analyzer_english", required = true)
             @PathVariable String promptKey,
@@ -82,6 +84,7 @@ public class PromptAdminController {
     )
     @ApiResponse(responseCode = "200", description = "All prompts reloaded successfully")
     @PostMapping("/reload-all")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN')")
     public ResponseEntity<String> reloadAll() {
         promptAdminService.reloadAll();
         return ResponseEntity.ok("All prompts reloaded");
@@ -94,6 +97,7 @@ public class PromptAdminController {
     )
     @ApiResponse(responseCode = "200", description = "Prompts retrieved")
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN')")
     public ResponseEntity<Page<PromptSummaryDto>> getAllPrompts(
             @Parameter(description = "Filter by prompt key e.g. request_analyzer_arabic")
             @RequestParam(required = false) String promptKey,
@@ -112,6 +116,7 @@ public class PromptAdminController {
             @ApiResponse(responseCode = "404", description = "Prompt not found", content = @Content)
     })
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN')")
     public ResponseEntity<PromptDetailDto> getPromptById(
             @Parameter(description = "Prompt ID", required = true) @PathVariable Long id) {
         return ResponseEntity.ok(promptAdminService.getPromptById(id));
@@ -126,6 +131,7 @@ public class PromptAdminController {
             @ApiResponse(responseCode = "404", description = "Prompt not found", content = @Content)
     })
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN')")
     public ResponseEntity<PromptSummaryDto> toggleStatus(
             @Parameter(description = "Prompt ID", required = true) @PathVariable Long id,
             @Parameter(description = "true to activate, false to deactivate", required = true)
@@ -139,6 +145,7 @@ public class PromptAdminController {
             @ApiResponse(responseCode = "404", description = "Prompt not found", content = @Content)
     })
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN')")
     public ResponseEntity<Void> deletePrompt(
             @Parameter(description = "Prompt ID", required = true) @PathVariable Long id) {
         promptAdminService.deletePrompt(id);
@@ -154,6 +161,7 @@ public class PromptAdminController {
             @ApiResponse(responseCode = "400", description = "None of the provided IDs exist", content = @Content)
     })
     @DeleteMapping("/batch")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN')")
     public ResponseEntity<Void> deletePrompts(@RequestBody List<Long> ids) {
         promptAdminService.deletePrompts(ids);
         return ResponseEntity.noContent().build();
@@ -168,6 +176,7 @@ public class PromptAdminController {
             @ApiResponse(responseCode = "400", description = "Prompt key already exists or invalid request", content = @Content)
     })
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN')")
     public ResponseEntity<PromptDetailDto> createPrompt(
             @RequestBody @Valid PromptCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -180,6 +189,7 @@ public class PromptAdminController {
     )
     @ApiResponse(responseCode = "200", description = "Stats retrieved")
     @GetMapping("/stats")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN')")
     public ResponseEntity<PromptStatsDto> getStats() {
         return ResponseEntity.ok(promptAdminService.getStats());
     }
@@ -193,6 +203,7 @@ public class PromptAdminController {
             @ApiResponse(responseCode = "404", description = "Prompt key not found", content = @Content)
     })
     @PutMapping("/{promptKey}/version")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN')")
     public ResponseEntity<PromptDetailDto> updatePromptVersion(
             @Parameter(description = "Prompt key e.g. request_analyzer_arabic", required = true)
             @PathVariable String promptKey,
@@ -207,6 +218,7 @@ public class PromptAdminController {
     )
     @ApiResponse(responseCode = "200", description = "History retrieved")
     @GetMapping("/{promptKey}/history")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN')")
     public ResponseEntity<List<PromptVersionDto>> getHistory(
             @Parameter(description = "Prompt key", required = true)
             @PathVariable String promptKey) {
@@ -222,6 +234,7 @@ public class PromptAdminController {
             @ApiResponse(responseCode = "404", description = "No previous version found", content = @Content)
     })
     @PostMapping("/{promptKey}/rollback")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN')")
     public ResponseEntity<PromptRollbackResponse> rollback(
             @Parameter(description = "Prompt key", required = true)
             @PathVariable String promptKey) {

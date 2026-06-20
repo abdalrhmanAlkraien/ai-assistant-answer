@@ -1,4 +1,4 @@
-package com.project.ai.config;
+package com.project.ai.business;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

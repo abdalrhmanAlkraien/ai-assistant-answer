@@ -18,4 +18,6 @@ public interface SystemLookupRepository extends JpaRepository<SystemLookup, Long
     List<SystemLookup> findAllByOrderByTypeAscSortOrderAsc();
     boolean existsByTypeAndCode(String type, String code);
     boolean existsByTypeAndCodeAndIdNot(String type, String code, Long id);
+
+    List<SystemLookup> findByActiveTrueOrderBySortOrderAsc();
 }
