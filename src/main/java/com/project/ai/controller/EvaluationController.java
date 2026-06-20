@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 /**
  * @author: Abd-alrhman Alkraien.
  * @Date: 18/06/2026
@@ -75,5 +77,10 @@ public class EvaluationController {
             @PathVariable Long contextId) {
 
         return ResponseEntity.ok(evaluationService.getContextDetail(id, contextId));
+    }
+
+    @GetMapping("/running")
+    public ResponseEntity<Map<String, Object>> isRunning() {
+        return ResponseEntity.ok(evaluationService.isRunning());
     }
 }

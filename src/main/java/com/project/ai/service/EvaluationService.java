@@ -23,7 +23,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -109,6 +112,32 @@ public class EvaluationService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Context not found: " + contextId));
         return toContextDetailDto(c);
+    }
+
+    public Map<String, Object> isRunning() {
+        Optional<Evaluation> running = evaluationRepository
+                .findTopByStatusOrderByCreatedAtDesc("in_progress");
+
+        Map<String, Object> response = new HashMap<>();
+
+        if (running.isEmpty()) {
+            response.put("running", false);
+            response.put("evaluation", null);
+            return response;
+        }
+
+        Evaluation eval = running.get();
+
+        Map<String, Object> evalDetails = new HashMap<>();
+        evalDetails.put("id",             eval.getId());
+        evalDetails.put("runId",          eval.getRunId());
+        evalDetails.put("startedAt",      eval.getCreatedAt());
+        evalDetails.put("totalEvaluated", eval.getTotalEvaluated());
+
+        response.put("running",    true);
+        response.put("evaluation", evalDetails);
+
+        return response;
     }
 
     // ---------- Mapper -------------

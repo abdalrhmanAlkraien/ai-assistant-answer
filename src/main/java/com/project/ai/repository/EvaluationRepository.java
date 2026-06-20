@@ -50,4 +50,7 @@ public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
     WHERE e.id = :id
 """)
     Optional<Evaluation> findByIdWithDetails(@Param("id") Long id);
+
+    Optional<Evaluation> findTopByStatusOrderByCreatedAtDesc(String status);
+
 }

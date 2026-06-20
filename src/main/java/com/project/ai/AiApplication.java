@@ -1,5 +1,6 @@
 package com.project.ai;
 
+import com.project.ai.config.CognitoProperties;
 import com.project.ai.config.LangChain4jProperties;
 import com.project.ai.config.WhisperProperties;
 import lombok.extern.log4j.Log4j2;
@@ -9,7 +10,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @SpringBootApplication
-@EnableConfigurationProperties({LangChain4jProperties.class, WhisperProperties.class})
+@EnableConfigurationProperties({LangChain4jProperties.class, WhisperProperties.class, CognitoProperties.class})
 @Log4j2
 public class AiApplication {
 
