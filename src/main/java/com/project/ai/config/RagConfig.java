@@ -20,7 +20,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
-import org.springframework.web.client.RestTemplate;
 import software.amazon.awssdk.regions.Region;
 
 import java.time.Duration;
@@ -37,11 +36,6 @@ import java.util.function.Supplier;
 public class RagConfig {
 
     private final LangChain4jProperties properties;
-
-    @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
-    }
 
     @Bean
     EmbeddingModel embeddingModel() {
@@ -150,7 +144,7 @@ public class RagConfig {
 
 
     public ChatModel buildModel(String modelKey) {
-        LangChain4jProperties.ChatModel chatConfig      = properties.getChatModel();
+        LangChain4jProperties.ChatModel chatConfig = properties.getChatModel();
         LangChain4jProperties.ChatModel.ModelConfig modelConfig = chatConfig.getModels().get(modelKey);
 
         if (modelConfig == null) {

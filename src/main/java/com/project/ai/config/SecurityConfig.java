@@ -16,10 +16,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -41,7 +37,9 @@ public class SecurityConfig {
             "/api/auth/confirm-force-change-password",
             "/swagger-ui/**",
             "/v3/api-docs/**",
-            "/api/health"
+            "/api/health",
+//            "/api/v1/chat/**",
+//            "/api/v1/history/**"
     };
 
     @Bean
@@ -63,6 +61,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()  // ← allow preflight
                         .requestMatchers(WHITE_LIST).permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/history/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2

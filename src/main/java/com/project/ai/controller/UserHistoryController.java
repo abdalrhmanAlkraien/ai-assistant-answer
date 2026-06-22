@@ -92,7 +92,7 @@ public class UserHistoryController {
             @ApiResponse(responseCode = "404", description = "No history found for this user", content = @Content)
     })
     @DeleteMapping("/{userId}")
-    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
+//    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Void> clearUserHistory(
             @Parameter(description = "User ID", required = true) @PathVariable String userId) {
         userHistoryService.clearUserHistory(userId);

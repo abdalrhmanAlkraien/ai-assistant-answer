@@ -1,5 +1,6 @@
 package com.project.ai.business;
 
+import com.project.ai.config.EvalsProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.Data;
@@ -21,6 +22,7 @@ import java.util.Map;
 public class PackageAccessInterceptor implements HandlerInterceptor {
 
     private final PackageProperties packageProperties;
+    private final EvalsProperties evalsProperties;
 
     private static final List<String> AUTH_ENDPOINTS = List.of(
             "/api/auth/**",
@@ -79,6 +81,18 @@ public class PackageAccessInterceptor implements HandlerInterceptor {
 
         String requestPath   = request.getRequestURI();
         String activePackage = packageProperties.getActive().toLowerCase();
+
+        // ── Allow requests from eval Python service ───────────────────────────
+        String internalSecret = request.getHeader("X-Internal-Secret");
+        log.info("[PackageAccessInterceptor] X-Internal-Secret='{}' configured='{}'",
+                internalSecret, evalsProperties.getInternalSecret());
+
+        if (evalsProperties.getInternalSecret() != null
+                && evalsProperties.getInternalSecret().equals(internalSecret)) {
+            log.info("[PackageAccessInterceptor] internal eval request — bypassing path='{}'",
+                    requestPath);
+            return true;
+        }
 
         // ── Always allow auth endpoints ───────────────────────────────────────
         boolean isAuthEndpoint = AUTH_ENDPOINTS.stream()

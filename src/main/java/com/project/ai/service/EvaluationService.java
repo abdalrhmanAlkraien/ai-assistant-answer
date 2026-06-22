@@ -1,8 +1,12 @@
 package com.project.ai.service;
 
+import com.project.ai.config.EvalsProperties;
 import com.project.ai.dto.evels.ContextDetailDto;
 import com.project.ai.dto.evels.ContextDto;
 import com.project.ai.dto.evels.ContextPageDto;
+import com.project.ai.dto.evels.EvalPollResponse;
+import com.project.ai.dto.evels.EvalTriggerRequest;
+import com.project.ai.dto.evels.EvalTriggerResponse;
 import com.project.ai.dto.evels.EvaluationDetailDto;
 import com.project.ai.dto.evels.EvaluationPageDto;
 import com.project.ai.dto.evels.EvaluationSummaryDto;
@@ -16,11 +20,14 @@ import com.project.ai.repository.EvaluationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.hibernate.Hibernate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
@@ -41,6 +48,9 @@ public class EvaluationService {
 
     private final EvaluationRepository evaluationRepository;
     private final ContextRepository contextRepository;
+
+    private final EvalsProperties evalsProperties;
+    private final RestTemplate restTemplate;
 
     @Transactional(readOnly = true)
     public Page<EvaluationPageDto> getEvaluations(
@@ -138,6 +148,86 @@ public class EvaluationService {
         response.put("evaluation", evalDetails);
 
         return response;
+    }
+
+    public EvalTriggerResponse triggerAsync(EvalTriggerRequest request) {
+
+        if (!evalsProperties.isEnabled()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Running evals is a separate add-on. Contact MIGFORA to enable.");
+        }
+
+        try {
+            log.info("[EvalTriggerService] triggering async eval lang='{}' searchType='{}'",
+                    request.getLang(), request.getSearchType());
+
+            // map to Python request format
+            Map<String, Object> pythonRequest = new HashMap<>();
+            pythonRequest.put("lang",        request.getLang());
+            pythonRequest.put("search_type", request.getSearchType());
+            pythonRequest.put("limit",       request.getLimit());
+            pythonRequest.put("save_report", request.getSaveReport());
+
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    evalsProperties.getEvelsUrl() + "/api/v1/eval/run/async",
+                    pythonRequest,
+                    Map.class
+            );
+
+            Map body = response.getBody();
+            log.info("[EvalTriggerService] eval triggered — evalId='{}'",
+                    body.get("eval_id"));
+
+            return EvalTriggerResponse.builder()
+                    .evalId((Integer) body.get("eval_id"))
+                    .status((String) body.get("status"))
+                    .lang(request.getLang())
+                    .searchType(request.getSearchType())
+                    .totalCases((Integer) body.get("total_cases"))
+                    .build();
+
+        } catch (Exception e) {
+            log.error("[EvalTriggerService] failed to trigger eval: {}", e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to trigger eval: " + e.getMessage());
+        }
+    }
+
+    public EvalPollResponse pollEval(Integer evalId) {
+        try {
+            log.info("[EvalTriggerService] polling eval evalId='{}'", evalId);
+
+            ResponseEntity<Map> response = restTemplate.getForEntity(
+                    evalsProperties.getEvelsUrl() + "/api/v1/eval/runs/" + evalId,
+                    Map.class
+            );
+
+            Map body = response.getBody();
+
+            return EvalPollResponse.builder()
+                    .evalId((Integer) body.get("eval_id"))
+                    .status((String) body.get("status"))
+                    .passed((Boolean) body.get("passed"))
+                    .totalEvaluated((Integer) body.get("total_evaluated"))
+                    .totalSkipped((Integer) body.get("total_skipped"))
+                    .lang((List<String>) body.get("lang"))
+                    .resultType((String) body.get("result_type"))
+                    .hasInconclusive((Boolean) body.get("has_inconclusive"))
+                    .createdAt((String) body.get("created_at"))
+                    .completedAt((String) body.get("completed_at"))
+                    .reportUrl((String) body.get("report_url"))
+                    .casesCompleted((Integer) body.get("cases_completed"))
+                    .casesTotal((Integer) body.get("cases_total"))
+                    .progressPct(body.get("progress_pct") != null
+                            ? ((Number) body.get("progress_pct")).doubleValue()
+                            : null)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("[EvalTriggerService] failed to poll eval: {}", e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to poll eval: " + e.getMessage());
+        }
     }
 
     // ---------- Mapper -------------

@@ -2,10 +2,14 @@ package com.project.ai.controller;
 
 import com.project.ai.dto.evels.ContextDetailDto;
 import com.project.ai.dto.evels.ContextPageDto;
+import com.project.ai.dto.evels.EvalPollResponse;
+import com.project.ai.dto.evels.EvalTriggerRequest;
+import com.project.ai.dto.evels.EvalTriggerResponse;
 import com.project.ai.dto.evels.EvaluationDetailDto;
 import com.project.ai.dto.evels.EvaluationPageDto;
 import com.project.ai.dto.evels.EvaluationSummaryDto;
 import com.project.ai.service.EvaluationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.data.domain.Page;
@@ -13,8 +17,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,6 +42,7 @@ public class EvaluationController {
     private final EvaluationService evaluationService;
 
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Page<EvaluationPageDto>> getEvaluations(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String triggeredType,
@@ -48,16 +56,19 @@ public class EvaluationController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<EvaluationDetailDto> getEvaluationById(@PathVariable Long id) {
         return ResponseEntity.ok(evaluationService.getEvaluationById(id));
     }
 
     @GetMapping("/summary/last")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<EvaluationSummaryDto> getLastEvaluationSummary() {
         return ResponseEntity.ok(evaluationService.getLastEvaluationSummary());
     }
 
     @GetMapping("/{id}/contexts")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Page<ContextPageDto>> getContexts(
             @PathVariable Long id,
             @RequestParam(required = false) String language,
@@ -72,6 +83,7 @@ public class EvaluationController {
     }
 
     @GetMapping("/{id}/contexts/{contextId}")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<ContextDetailDto> getContextDetail(
             @PathVariable Long id,
             @PathVariable Long contextId) {
@@ -80,7 +92,22 @@ public class EvaluationController {
     }
 
     @GetMapping("/running")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<Map<String, Object>> isRunning() {
         return ResponseEntity.ok(evaluationService.isRunning());
+    }
+
+    @PostMapping("/trigger")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
+    public ResponseEntity<EvalTriggerResponse> triggerEval(
+            @RequestBody @Valid EvalTriggerRequest request) {
+        return ResponseEntity.ok(evaluationService.triggerAsync(request));
+    }
+
+    @GetMapping("/trigger/poll/{evalId}")
+    @PreAuthorize("hasAnyAuthority('ROLE_MIGFORA_ADMIN', 'ROLE_SUPER_ADMIN')")
+    public ResponseEntity<EvalPollResponse> pollEval(
+            @PathVariable Integer evalId) {
+        return ResponseEntity.ok(evaluationService.pollEval(evalId));
     }
 }
